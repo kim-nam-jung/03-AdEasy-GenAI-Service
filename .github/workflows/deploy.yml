@@ -20,8 +20,23 @@ jobs:
           script: |
             echo "🚀 Starting Deployment..."
             
-            # 1. Navigate to project directory
-            cd /home/spai0437/Development/03-AdEasy-GenAI-Service || { echo "❌ Directory not found"; exit 1; }
+            # 1. Dynamically find the project directory (Smart Search)
+            echo "🔍 Searching for project directory..."
+            PROJECT_ROOT=$(find $HOME -type d -name "03-AdEasy-GenAI-Service" -not -path "*/.*" | head -n 1)
+            
+            if [ -z "$PROJECT_ROOT" ]; then
+                # Try fallback name often used in guides
+                PROJECT_ROOT=$(find $HOME -type d -name "adeasy" -not -path "*/.*" | head -n 1)
+            fi
+            
+            if [ -z "$PROJECT_ROOT" ]; then
+                echo "❌ Error: Could not find project directory on VM."
+                echo "Please ensure the project is cloned and has the correct name."
+                exit 1
+            fi
+            
+            echo "📍 Found project at: $PROJECT_ROOT"
+            cd "$PROJECT_ROOT"
             
             # 2. Pull latest code (Hard reset to avoid merge conflicts)
             echo "📥 Fetching and resetting to latest code..."
