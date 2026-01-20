@@ -1,17 +1,10 @@
 # pipeline/orchestrator.py
 """
-영상 생성 파이프라인 오케스트레이터 (Updated 2026-01-06)
+Video Generation Pipeline Orchestrator (3-Step Simplified)
 
-Step 0: 입력 전처리 (FastSAM)
-Step 1: 이미지 이해 (Qwen2-VL-7B)
-Step 1.5: 프롬프트 증강 (Qwen2.5-14B) ← 추가!
-Step 2: 광고 기획 (Qwen2.5-14B)
-Step 3: 제어맵 생성 (ControlNet Canny + MiDaS Depth)
-Step 4: 키프레임 생성 (SDXL 1.0 + ControlNet)
-Step 5: 영상 생성 (LTX-Video 13B Distilled I2V)
-Step 6: 후처리 (RIFE + Real-ESRGAN)
-Step 7-8: 최종 조립 (FFmpeg)
-Step 9: 품질 검증 (Identity Score)
+Step 1: Segmentation (Qwen-Image-Layered)
+Step 2: Video Generation (LTX-Video)
+Step 3: Post-processing (RIFE + Real-CUGAN + FFmpeg)
 """
 
 from pathlib import Path
@@ -20,25 +13,12 @@ from common.paths import TaskPaths
 from common.logger import TaskLogger
 from common.config import Config
 from common.redis_manager import RedisManager
-from common.schema import AdPlan
-
-# Step imports
-from pipeline.step0_preprocessing import step0_preprocessing
-from pipeline.step1_understanding import step1_understanding
-from pipeline.step1_5_prompt_expansion import step1_5_prompt_expansion  # ← 추가
-from pipeline.step2_planning import step2_planning
-from pipeline.step3_control import step3_control
-from pipeline.step4_generation import step4_generation
-from pipeline.step5_video import step5_video
-from pipeline.step6_postprocess import step6_postprocess
-from pipeline.step7_8_assembly import step7_8_assembly
-from pipeline.step9_validation import step9_validation
 from pipeline.vram_manager import VRAMManager
 
 
 class PipelineOrchestrator:
     """
-    영상 생성 파이프라인 총괄 관리자 (v2.5)
+    Orchestrator for 3-step video generation pipeline
     """
     
     def __init__(
@@ -49,13 +29,13 @@ class PipelineOrchestrator:
         redis_mgr: Optional[RedisManager] = None
     ):
         """
-        초기화
+        Initialize orchestrator
         
         Args:
-            task_id: 작업 ID
-            image_paths: 입력 이미지 경로 리스트
-            prompt: 텍스트 프롬프트
-            redis_mgr: Redis 관리자 (선택)
+            task_id: Task ID
+            image_paths: Input image paths
+            prompt: Text prompt
+            redis_mgr: Redis manager (optional)
         """
         self.task_id = task_id
         self.image_paths = image_paths
@@ -71,98 +51,88 @@ class PipelineOrchestrator:
         self.vram_mgr = VRAMManager(logger=self.logger, cfg=self.cfg)
         
         self.logger.info("=" * 60)
-        self.logger.info(f"🎬 PipelineOrchestrator v2.5 initialized")
+        self.logger.info(f"🎬 PipelineOrchestrator v3.0 (3-Step) initialized")
         self.logger.info(f"   Task ID: {task_id}")
         self.logger.info(f"   Images: {len(image_paths)}")
         self.logger.info(f"   Prompt: '{prompt}'")
         self.logger.info("=" * 60)
     
-    def _update_status(self, step: float, progress: int, message: str):
+    def _update_status(self, step: int, progress: int, message: str):
         """
-        Redis 상태 업데이트 헬퍼
-        
-        Args:
-            step: 현재 Step 번호 (1.5 지원)
-            progress: 진행률 (0~100)
-            message: 상태 메시지
+        Redis status update helper
         """
         self.redis_mgr.set_status(
             task_id=self.task_id,
             status="processing",
-            current_step=int(step),  # Redis는 정수만 지원
+            current_step=step,
             progress=progress,
             message=message
         )
     
     def run(self) -> Dict:
         """
-        전체 파이프라인 실행 (Agentic Workflow v3.0)
+        Execute 3-step agentic pipeline
         """
         self.logger.info("=" * 60)
-        self.logger.info("🚀 Starting Agentic Pipeline execution (v3.0)...")
+        self.logger.info("🚀 Starting 3-Step Pipeline...")
         self.logger.info("=" * 60)
         
         try:
             from pipeline.graph import create_agent_graph
             
-            # Initial State
+            # Initial State for 3-step pipeline
             initial_state = {
                 "task_id": self.task_id,
                 "user_prompt": self.prompt,
                 "image_paths": self.image_paths,
-                "config": self.cfg._data, # Pass dict
+                "config": self.cfg._data,
                 "current_step": "start",
+                "next_step": "step1",
                 "step_results": {},
+                "segmented_layers": [],
+                "main_product_layer": "",
+                "raw_video_path": "",
+                "final_video_path": "",
+                "thumbnail_path": "",
+                "error": None,
                 "retry_count": {},
-                "reflection_history": []
+                "reflection_history": [],
+                "final_output": {}
             }
             
-            # Compile Graph
+            # Compile and run graph
             app = create_agent_graph(self.task_id, self.redis_mgr)
-            
-            # Invoke Graph
-            # recursions limit can be increased if many retries needed
             final_state = app.invoke(initial_state, {"recursion_limit": 50})
             
-            # Extract Results
-            results = final_state.get("step_results", {})
-            
-            # Check for failure
+            # Check for errors
             if final_state.get("error"):
-                 raise Exception(final_state["error"])
-                 
-            # Retrieve final step outputs (Step 7-8 and Step 9)
-            step7_8_res = results.get("step7_8", {})
-            step9_res = results.get("step9", {})
+                raise Exception(final_state["error"])
             
-            if not step7_8_res:
-                raise Exception("Pipeline finished but no video generated (Step 7-8 missing)")
-                
-            final_video = step7_8_res.get("final_video")
-            thumbnail = step7_8_res.get("thumbnail")
-            identity_score = step9_res.get("identity_score", 0.0)
-            passed = step9_res.get("passed", False)
-
+            # Extract final outputs
+            final_output = final_state.get("final_output", {})
+            final_video = final_state.get("final_video_path", "")
+            thumbnail = final_state.get("thumbnail_path", "")
+            
+            if not final_video:
+                raise Exception("Pipeline completed but no final video generated")
+            
             self.logger.info("")
             self.logger.info("=" * 60)
-            self.logger.info("✅ Agentic Pipeline completed successfully!")
+            self.logger.info("✅ 3-Step Pipeline completed successfully!")
             self.logger.info(f"   Final video: {final_video}")
             self.logger.info(f"   Thumbnail: {thumbnail}")
-            self.logger.info(f"   Identity Score: {identity_score:.4f}")
-            self.logger.info(f"   Validation: {'✅ PASSED' if passed else '❌ FAILED'}")
             self.logger.info("=" * 60)
             
-            # Redis Update provided by Graph nodes? 
-            # Nodes handle updates, but final 'completed' status is good here.
+            # Update Redis status
             self.redis_mgr.set_status(
                 task_id=self.task_id,
                 status="completed",
-                current_step=9,
+                current_step=3,
                 progress=100,
                 message="Pipeline completed",
                 extra={
-                    "output_path": f"outputs/{self.task_id}/final.mp4",
-                    "thumbnail_path": f"outputs/{self.task_id}/thumb.jpg"
+                    "output_path": final_video,
+                    "thumbnail_path": thumbnail
                 }
             )
             
@@ -171,9 +141,8 @@ class PipelineOrchestrator:
                 "task_id": self.task_id,
                 "final_video": str(final_video),
                 "thumbnail": str(thumbnail),
-                "identity_score": identity_score,
-                "passed": passed,
-                "reflection_history": final_state.get("reflection_history")
+                "final_output": final_output,
+                "reflection_history": final_state.get("reflection_history", [])
             }
             
         except Exception as e:
