@@ -37,7 +37,7 @@ describe('ProgressBar', () => {
     );
     
     // All 3 steps should have checkmarks
-    const checkmarks = screen.getAllByText('✓');
+    screen.getAllByText('✓');
     // Check for "Done" (might appear multiple times: status and message)
     const doneElements = screen.getAllByText('Done');
     expect(doneElements.length).toBeGreaterThan(0);

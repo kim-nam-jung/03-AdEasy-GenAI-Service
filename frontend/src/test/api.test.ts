@@ -45,7 +45,7 @@ describe('API Client', () => {
         await expect(api.getTask('fail')).rejects.toThrow('Error: Internal Server Error');
     });
 
-    it('debugAnalyzeStep1 sends file and prompt', async () => {
+    it('debugStep1Segmentation sends file and params', async () => {
         const mockResponse = { result: 'ok' };
         (fetch as any).mockResolvedValue({
             ok: true,
@@ -53,26 +53,25 @@ describe('API Client', () => {
         });
 
         const file = new File([''], 'test.jpg');
-        const result = await api.debugAnalyzeStep1(file, 'test prompt');
+        const result = await api.debugStep1Segmentation(file, 4, 640);
 
-        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/debug/step1/analyze'), expect.objectContaining({
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/debug/step1/segmentation'), expect.objectContaining({
             method: 'POST',
             body: expect.any(FormData)
         }));
         expect(result).toEqual(mockResponse);
     });
 
-    it('debugPlanStep2 sends file, data and prompt', async () => {
+    it('debugStep2VideoGeneration sends layer path and params', async () => {
         const mockResponse = { result: 'ok' };
         (fetch as any).mockResolvedValue({
             ok: true,
             json: async () => mockResponse
         });
 
-        const file = new File([''], 'test.jpg');
-        const result = await api.debugPlanStep2(file, { info: 'test' }, 'test prompt');
+        const result = await api.debugStep2VideoGeneration('path/to/layer.png', 'test prompt', 17);
 
-        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/debug/step2/plan'), expect.objectContaining({
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/debug/step2/video_generation'), expect.objectContaining({
             method: 'POST',
             body: expect.any(FormData)
         }));

@@ -13,7 +13,9 @@ vi.mock('../api/client', () => ({
 }));
 
 // Mock URL.createObjectURL since JSDOM doesn't support it
-global.URL.createObjectURL = vi.fn(() => 'mock-url');
+vi.stubGlobal('URL', {
+  createObjectURL: vi.fn(() => 'mock-url'),
+});
 
 describe('PipelineLab Component', () => {
   it('renders and allows tab switching', () => {

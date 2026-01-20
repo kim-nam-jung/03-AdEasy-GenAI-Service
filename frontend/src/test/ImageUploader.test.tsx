@@ -4,7 +4,9 @@ import { ImageUploader } from '../components/ImageUploader';
 import '@testing-library/jest-dom';
 
 // Mock URL.createObjectURL
-global.URL.createObjectURL = vi.fn(() => 'mock-url');
+vi.stubGlobal('URL', {
+  createObjectURL: vi.fn(() => 'mock-url'),
+});
 
 describe('ImageUploader Component', () => {
   it('renders correctly', () => {
