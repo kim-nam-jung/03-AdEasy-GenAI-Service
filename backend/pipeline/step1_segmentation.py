@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 
 from pipeline.models.qwen_image_layered_loader import QwenImageLayeredLoader
-from common.paths import Paths
+from common.paths import TaskPaths
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class Step1Segmentation:
             )
             
             # Save layers to disk
-            output_dir = Paths.get_task_dir(task_id) / "segmentation"
+            output_dir = TaskPaths.from_repo(task_id).outputs_task_dir / "segmentation"
             output_dir.mkdir(parents=True, exist_ok=True)
             
             layer_paths = []

@@ -11,7 +11,8 @@ from common.config import Config
 cfg = Config.load()
 
 # Redis URL 가져오기
-redis_url = cfg.get('redis.default_url', 'redis://localhost:6379/0')
+# Resolve env var first (happens in Config.load)
+redis_url = cfg.get('redis.url') or cfg.get('redis.default_url', 'redis://localhost:6379/0')
 
 # Celery 앱 생성
 celery_app = Celery(

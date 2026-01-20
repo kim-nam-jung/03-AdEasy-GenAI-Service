@@ -19,19 +19,31 @@ jobs:
             echo "🚀 Starting Deployment..."
             
             # 1. Navigate to project directory
-            # (Adjust this path if your project is in a different folder on the VM)
-            cd /home/spai0437/Development/03-AdEasy-GenAI-Service
+            cd /home/spai0437/Development/03-AdEasy-GenAI-Service || { echo "❌ Directory not found"; exit 1; }
             
-            # 2. Pull latest code
-            echo "📥 Pulling latest code..."
-            git pull origin main
+            # 2. Pull latest code (Hard reset to avoid merge conflicts)
+            echo "📥 Fetching and resetting to latest code..."
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
             
-            # 3. Rebuild and Restart Containers
+            # 3. Pull LFS objects if any
+            git lfs pull || echo "⚠️ Git LFS pull failed or not installed, skipping..."
+            
+            # 4. Rebuild and Restart Containers
             echo "🔄 Rebuilding containers..."
-            # Force recreation to apply new changes
-            docker compose up -d --build --force-recreate
+            # Try Docker Compose V2 first, then V1
+            if docker compose version > /dev/null 2>&1; then
+                DOCKER_CMD="docker compose"
+            else
+                DOCKER_CMD="docker-compose"
+            fi
             
-            # 4. Prune unused images (optional, saves space)
+            echo "Using command: $DOCKER_CMD"
+            $DOCKER_CMD down
+            $DOCKER_CMD up -d --build --force-recreate
+            
+            # 5. Prune unused images
             docker image prune -f
             
             echo "✅ Deployment Complete!"

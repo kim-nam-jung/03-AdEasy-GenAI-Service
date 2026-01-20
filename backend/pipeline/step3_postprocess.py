@@ -10,7 +10,7 @@ import subprocess
 
 from pipeline.models.rife_loader import RIFELoader
 from pipeline.models.real_cugan_loader import RealCUGANLoader
-from common.paths import Paths
+from common.paths import TaskPaths
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class Step3Postprocess:
             cugan_config = postprocess_config.get("real_cugan", {})
             output_config = postprocess_config.get("output", {})
             
-            output_dir = Paths.get_task_dir(task_id) / "final"
+            output_dir = TaskPaths.from_repo(task_id).outputs_task_dir / "final"
             output_dir.mkdir(parents=True, exist_ok=True)
             
             current_video = raw_video_path

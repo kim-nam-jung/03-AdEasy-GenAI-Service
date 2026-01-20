@@ -33,16 +33,13 @@ export const PipelineLab: React.FC = () => {
             setS1Loading(true);
             setS1Result(null);
             
-            // TODO: Connect to actual API
-            // const res = await api.debugStep1Segmentation(s1Files[0], s1NumLayers, s1Resolution);
-            // setS1Result(res.result);
+            const res = await api.debugStep1Segmentation(s1Files[0], s1NumLayers, s1Resolution);
+            setS1Result(res.result);
             
-            // Placeholder result
-            setS1Result({
-                status: "success",
-                message: "Segmentation API not yet connected",
-                config: { num_layers: s1NumLayers, resolution: s1Resolution }
-            });
+            // Auto-fill Step 2 image path
+            if (res.result?.main_product_layer) {
+                setS2ImagePath(res.result.main_product_layer);
+            }
             
         } catch (e: any) {
             alert(e.message);
@@ -59,15 +56,13 @@ export const PipelineLab: React.FC = () => {
             setS2Loading(true);
             setS2Result(null);
             
-            // TODO: Connect to actual API
-            // const res = await api.debugStep2VideoGeneration(s2ImagePath, s2Prompt, s2NumFrames);
-            // setS2Result(res.result);
+            const res = await api.debugStep2VideoGeneration(s2ImagePath, s2Prompt, s2NumFrames);
+            setS2Result(res.result);
             
-            setS2Result({
-                status: "success",
-                message: "Video generation API not yet connected",
-                config: { num_frames: s2NumFrames, prompt: s2Prompt }
-            });
+            // Auto-fill Step 3 video path
+            if (res.result?.raw_video_path) {
+                setS3VideoPath(res.result.raw_video_path);
+            }
         } catch (e: any) {
             alert(e.message);
         } finally {
@@ -82,15 +77,9 @@ export const PipelineLab: React.FC = () => {
             setS3Loading(true);
             setS3Result(null);
             
-            // TODO: Connect to actual API
-            // const res = await api.debugStep3Postprocess(s3VideoPath, s3RifeEnabled, s3CuganEnabled);
-            // setS3Result(res.result);
+            const res = await api.debugStep3Postprocess(s3VideoPath, s3RifeEnabled, s3CuganEnabled);
+            setS3Result(res.result);
             
-            setS3Result({
-                status: "success",
-                message: "Post-processing API not yet connected",
-                config: { rife: s3RifeEnabled, cugan: s3CuganEnabled }
-            });
         } catch (e: any) {
             alert(e.message);
         } finally {
@@ -98,11 +87,28 @@ export const PipelineLab: React.FC = () => {
         }
     };
 
+    const handleCleanup = async () => {
+        try {
+            await api.debugCleanup();
+            alert("VRAM Cleanup successful");
+        } catch (e: any) {
+            alert(e.message);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full animate-fade-in">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Pipeline Lab</h1>
-                <p className="text-zinc-500 text-sm mt-1">Debug the 3-step video generation pipeline.</p>
+            <div className="mb-6 flex justify-between items-start">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Pipeline Lab</h1>
+                    <p className="text-zinc-500 text-sm mt-1">Debug the 3-step video generation pipeline.</p>
+                </div>
+                <button 
+                    onClick={handleCleanup}
+                    className="px-3 py-1.5 text-xs font-medium text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
+                >
+                    Clear VRAM
+                </button>
             </div>
 
             {/* Tabs - 3 Steps */}

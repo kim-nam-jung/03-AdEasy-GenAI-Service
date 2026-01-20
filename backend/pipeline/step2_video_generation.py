@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from pipeline.models.ltx2_pro_loader import LTX2ProLoader
-from common.paths import Paths
+from common.paths import TaskPaths
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class Step2VideoGeneration:
             self.vram_manager.load_model("ltx2_pro", self.loader)
             
             # Generate video
-            output_dir = Paths.get_task_dir(task_id) / "video"
+            output_dir = TaskPaths.from_repo(task_id).outputs_task_dir / "video"
             output_dir.mkdir(parents=True, exist_ok=True)
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
