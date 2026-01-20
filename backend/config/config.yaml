@@ -1,0 +1,243 @@
+# config.yaml
+app:
+  name: "ADEASY_SHORTS"
+  version: "v2.5"  # ← 업데이트
+  timezone: "Asia/Seoul"
+
+paths:
+  repo_root: null
+  data_dir: "data"
+  inputs_dir: "data/inputs"
+  temp_dir: "data/temp"
+  outputs_dir: "outputs"
+  models_dir: "models"
+  bgm_dir: "data/bgm"
+  fonts_dir: "assets/fonts"
+
+models:
+  cache_dir: "/home/spai0432/cache/hf"
+  
+  # Step 0: 배경 제거
+  fastsam:
+    local_dir: "models/fastsam"
+    device: "cuda"
+  
+  # Step 1: 이미지 이해 (Qwen2-VL-7B)
+  qwen_vl:
+    repo_id: "Qwen/Qwen2-VL-7B-Instruct"
+    local_dir: "models/Qwen2-VL-7B-Instruct"
+    device: "cuda"
+    quantization: "8bit"
+    max_tokens: 512
+    use_flash_attention: true  # ← 추가
+  
+  # Step 1.5 & Step 2: 프롬프트 증강 & 광고 기획 (Qwen2.5-14B) ← 업그레이드
+  qwen_llm:
+    repo_id: "Qwen/Qwen2.5-14B-Instruct"  # ← 7B → 14B
+    local_dir: "models/Qwen2.5-14B-Instruct"
+    device: "cuda"
+    quantization: "8bit"
+    temperature: 0.7
+    max_tokens: 2048  # ← 1024 → 2048 (AdPlan 생성용)
+    top_p: 0.9
+    repetition_penalty: 1.1
+  
+  # Step 3: 제어맵 생성
+  controlnet:
+    # Canny Edge Detection
+    canny:
+      enabled: true
+      low_threshold: 50
+      high_threshold: 150
+      conditioning_scale: 0.8
+    
+    # MiDaS Depth Estimation
+    depth:
+      enabled: true  # ← 선택 사항 (Step 3 테스트에서는 Canny만 사용)
+      repo_id: "intel-isl/MiDaS"
+      model_type: "DPT_Large"
+      local_dir: "models/MiDaS"
+      device: "cuda"
+      conditioning_scale: 0.5
+  
+  # Step 4: 키프레임 생성 (SDXL 1.0 + ControlNet)
+  sdxl:
+    repo_id: "stabilityai/stable-diffusion-xl-base-1.0"
+    local_dir: "models/SDXL-1.0"
+    controlnet_repo_id: "diffusers/controlnet-canny-sdxl-1.0"
+    controlnet_local_dir: "models/controlnet-canny-sdxl-1.0"
+    device: "cuda"
+    quantization: "8bit"  # ← 추가 (VRAM 절감)
+    steps: 30
+    guidance_scale: 7.5
+    controlnet_conditioning_scale: 0.8
+    negative_prompt: "blurry, low quality, distorted, ugly, watermark, text, logo, deformed"
+  
+  # Step 5: 영상 생성 (LTX-Video 2 Pro) ← 업그레이드
+  ltx_video:
+    repo_id: "Lightricks/LTX-Video-2-Pro-13B" # Assuming this ID based on user request "LTX-2 pro"
+    local_dir: "models/LTX-Video-2-Pro-13B"
+    device: "cuda"
+    use_cpu_offload: true
+    use_gradient_checkpointing: true
+    
+    # Step 5 최적화 설정
+    duration: 2.0
+    fps: 24
+    num_inference_steps: 30 # Pro 모델이라 30으로 복귀 (Config에서 오버라이드 가능)
+    guidance_scale: 7.5
+    width: 768   # 조금 더 고화질 (Pro)
+    height: 1344 
+    
+    note: |
+      LTX-2 Pro (13B) 설정:
+      - CPU Offload 필수
+      - duration=2.0s 권장
+  
+  # Step 6: 후처리
+  rife:
+    model: "rife-v4.6"
+    local_dir: "models/rife"
+    device: "cuda"
+  
+  esrgan:
+    local_dir: "models/Real-ESRGAN"
+    device: "cuda"
+    scale: 2
+    model_name: "RealESRGAN_x2plus"
+
+# Step 5 영상 설정 ← 업데이트
+video:
+  resolution:
+    width: 1080
+    height: 1920
+  fps: 24
+  
+  # Step 5 출력 (Scene별 raw 영상)
+  scene_duration: 2.0  # ← 각 Scene 길이 (초)
+  total_scenes: 3
+  
+  # Step 6 후처리 후 최종 영상
+  final_duration: 6.0  # ← 2.0 × 3 = 6초 (전환 효과 제외)
+  
+  # Scene 구성 (Step 2 AdPlan 기준)
+  scenes:
+    count: 3
+    durations_sec: [2.0, 2.0, 2.0]  # ← 업데이트 (5.5, 5.0, 5.0 → 2.0, 2.0, 2.0)
+    frame_counts: [48, 48, 48]      # ← 업데이트 (24fps × 2.0s)
+  
+  # 전환 효과
+  transitions:
+    type: "dissolve"
+    duration_sec: 0.5
+    overlap_frames: 12
+  
+  # 인코딩
+  encode:
+    vcodec: "libx264"
+    acodec: "aac"
+    crf: 18
+    preset: "medium"
+    pix_fmt: "yuv420p"
+    audio_bitrate: "192k"
+
+# Step 4 키프레임 설정
+keyframe:
+  size: [704, 1280]
+  controlnet_scale: 0.8
+  negative_prompt_default: "blurry, low quality, distorted, ugly, watermark, text, deformed, extra limbs"
+
+# Step 6 후처리 설정
+postprocess:
+  rife:
+    enabled: true
+    target_fps: 24
+    apply_if_fps_below: 24
+  
+  esrgan:
+    enabled: true
+    scale: 2  # 704×1280 → 1408×2560
+  
+  ffmpeg_scale_crop:
+    enabled: true
+    scale:
+      width: 1080
+      height: 1920
+      force_original_aspect_ratio: "increase"
+    crop:
+      width: 1080
+      height: 1920
+
+# VRAM 관리
+vram:
+  gate1:
+    free_gb_required: 8
+    cleanup_target_gb: 2
+  gate2:
+    free_gb_required: 8
+    cleanup_target_gb: 2
+  safety_margin_gb: 2
+  
+  # Step별 예상 VRAM 사용량 (참고)
+  expected_usage:
+    step0_fastsam: 2
+    step1_qwen_vl: 4
+    step1_5_qwen_llm: 8
+    step2_qwen_llm: 8
+    step3_controlnet: 2
+    step4_sdxl: 9
+    step5_ltx_video_load: 0  # CPU Offload
+    step5_ltx_video_generate: 15  # duration=2.0 기준
+    step6_esrgan: 4
+
+# Step 9 품질 검증
+quality:
+  identity_score_threshold: 0.90
+  ssim:
+    sample_every_n_frames: 24
+    top_percent: 50
+
+# Redis
+redis:
+  url_env: "REDIS_URL"
+  default_url: "redis://localhost:6379/0"
+  key_prefix: "task:"
+  ttl_seconds: 86400
+
+# Celery
+celery:
+  broker_url: "redis://localhost:6379/0"
+  result_backend: "redis://localhost:6379/0"
+  task_serializer: "json"
+  result_serializer: "json"
+  accept_content: ["json"]
+  timezone: "Asia/Seoul"
+  enable_utc: true
+
+# 로깅
+logging:
+  level: "INFO"
+  to_console: true
+  to_file: true
+  format: "[%(asctime)s] %(levelname)s %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+# FFmpeg
+ffmpeg:
+  binary: "ffmpeg"
+  ffprobe: "ffprobe"
+
+# Assets
+assets:
+  font:
+    noto_sans_kr_regular: "assets/fonts/NotoSansKR-Regular.ttf"
+
+# Step 1.5: 프롬프트 증강 설정 ← 추가
+prompt_expansion:
+  enabled: true
+  target_length: 200  # 확장 목표 단어 수
+  include_keywords: true
+  include_tone: true
+  include_target_audience: true
+  temperature: 0.8
+  max_tokens: 512

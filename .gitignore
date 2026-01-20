@@ -1,0 +1,14 @@
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+backend/sam2.1_l.pt
+.git_backup/
+backend/sam2.1_l.pt
+backend/venv/
+.git_backup/
+venv/
+_archive/
+node_modules/

@@ -1,0 +1,99 @@
+import os
+import yaml
+from pathlib import Path
+from typing import List, Union, Any, Dict
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AnyHttpUrl, validator
+
+# ==============================================================================
+# 1. Pydantic Settings (FastAPI & System Config)
+# ==============================================================================
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "AdEasy GenAI Service"
+    API_V1_STR: str = "/api/v1"
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    # Redis (Env var takes precedence)
+    REDIS_URL: str = "redis://redis:6379/0"
+    
+    # Paths
+    UPLOAD_DIR: str = "/app/data/inputs"
+    OUTPUT_DIR: str = "/app/outputs"
+    MODEL_DIR: str = "/app/models"
+    
+    # Security
+    API_KEY: str = "adeasy-secret-key"
+
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+
+settings = Settings()
+
+
+# ==============================================================================
+# 2. Legacy YAML Config (Pipeline Config)
+# ==============================================================================
+class Config:
+    """Global config loader (singleton pattern) for variables.yaml logic"""
+    _instance: 'Config | None' = None
+    _data: Dict[str, Any] = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def load(cls, config_path: Path | str | None = None) -> "Config":
+        instance = cls()
+        if not instance._data:
+            if config_path is None:
+                # Try to locate config/config.yaml relative to project root
+                # Assuming this file is in backend/app/core/config.py
+                # Root is backend/
+                root = Path(__file__).resolve().parents[2] 
+                config_path = root / "config" / "config.yaml"
+            
+            if not isinstance(config_path, Path):
+                config_path = Path(config_path)
+
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    instance._data = yaml.safe_load(f) or {}
+                
+                # 환경변수 치환 (REDIS_URL 등)
+                instance._resolve_env_vars()
+            else:
+                print(f"Warning: Config file not found at {config_path}")
+                instance._data = {}
+        
+        return instance
+
+    def _resolve_env_vars(self) -> None:
+        """환경변수 값 치환"""
+        redis_url_env = self._data.get("redis", {}).get("url_env")
+        if redis_url_env:
+            redis_url = os.getenv(redis_url_env)
+            if redis_url:
+                if "redis" in self._data:
+                    self._data["redis"]["url"] = redis_url
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dot notation: 'models.qwen_vl.repo_id'"""
+        keys = key.split(".")
+        val = self._data
+        for k in keys:
+            if isinstance(val, dict):
+                val = val.get(k)
+            else:
+                return default
+            if val is None:
+                return default
+        return val
+
+    def __getitem__(self, key: str) -> Any:
+        return self.get(key)
