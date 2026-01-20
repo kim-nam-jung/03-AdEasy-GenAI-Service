@@ -8,6 +8,7 @@ interface ReflectionLogProps {
 export const ReflectionLog: React.FC<ReflectionLogProps> = ({ taskId }) => {
     const { logs, isConnected } = useReflectionStream(taskId);
     const endRef = useRef<HTMLDivElement>(null);
+    const [isExpanded, setIsExpanded] = React.useState(true);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -17,52 +18,29 @@ export const ReflectionLog: React.FC<ReflectionLogProps> = ({ taskId }) => {
     if (!taskId) return null;
 
     return (
-        <div className="w-full bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50 font-mono text-sm ring-1 ring-white/10">
-            {/* Header */}
-            <div className="bg-slate-950/50 px-5 py-3 flex items-center justify-between border-b border-white/5 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
-                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
-                        <span className="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
-                    </div>
-                    <span className="text-slate-400 font-medium text-xs ml-2">SUPERVISOR.LOG</span>
-                </div>
-                <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-md">
-                     <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`}></span>
-                    <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">
-                        {isConnected ? 'Live' : 'Offline'}
-                    </span>
-                </div>
-            </div>
+        <div className="w-full border-t border-zinc-100 mt-4 pt-4">
+            <button 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors mb-2 w-full"
+            >
+                <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                SUPERVISOR LOGS
+                <span className={`w-1.5 h-1.5 rounded-full ml-auto ${isConnected ? 'bg-green-500' : 'bg-zinc-300'}`} />
+            </button>
 
-            {/* Logs Area */}
-            <div className="p-6 h-64 overflow-y-auto space-y-3 custom-scrollbar bg-slate-900/50">
-                {logs.length === 0 && isConnected && (
-                    <div className="text-slate-600 italic">Initializing agent process...</div>
-                )}
-                
-                {logs.map((log) => (
-                    <div key={log.id} className="animate-fade-in group">
-                        <div className="flex items-start gap-3">
-                            <span className="text-indigo-400/50 text-xs mt-0.5 select-none font-light min-w-[60px]">{log.timestamp}</span>
-                            <div className="text-slate-300 whitespace-pre-wrap leading-relaxed group-hover:text-white transition-colors">
-                                {log.content}
-                                {!log.isComplete && (
-                                    <span className="inline-block w-2 h-4 ml-1 bg-indigo-500 align-middle animate-ping"></span>
-                                )}
-                            </div>
+            {isExpanded && (
+                <div className="w-full bg-zinc-50 rounded-md p-4 font-mono text-xs text-zinc-600 h-48 overflow-y-auto custom-scrollbar border border-zinc-200/50 shadow-inner">
+                    {logs.length === 0 && (
+                        <div className="text-zinc-400 italic">No logs yet...</div>
+                    )}
+                    
+                    {logs.map((log) => (
+                        <div key={log.id} className="mb-2 last:mb-0">
+                            <span className="text-zinc-400 mr-2 select-none">[{log.timestamp.split(' ')[1]}]</span>
+                            <span className="whitespace-pre-wrap">{log.content}</span>
                         </div>
-                    </div>
-                ))}
-                
-                <div ref={endRef} />
-            </div>
-            
-            {/* Status Footer */}
-            {!isConnected && logs.length > 0 && (
-                 <div className="bg-red-500/10 px-4 py-1.5 text-xs text-red-400 text-center border-t border-red-500/20">
-                    Connection Closed
+                    ))}
+                    <div ref={endRef} />
                 </div>
             )}
         </div>

@@ -7,6 +7,7 @@ interface ImageUploaderProps {
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, isLoading }) => {
   const [previews, setPreviews] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -28,6 +29,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, 
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragging(false);
     if (isLoading) return;
     
     if (e.dataTransfer.files) {
@@ -38,17 +40,31 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, 
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-2">
+           <label className="text-sm font-semibold text-zinc-900">Source Assets</label>
+           <span className="text-xs text-zinc-500 font-mono">MAX 4</span>
+      </div>
+      
       <div 
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className={`group border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300 ${
+        onDragLeave={handleDragLeave}
+        className={`group relative h-48 w-full border border-dashed rounded-lg transition-all duration-200 flex flex-col items-center justify-center cursor-pointer ${
           isLoading 
-            ? 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-50' 
-            : 'border-indigo-200 bg-indigo-50/50 hover:border-indigo-500 hover:bg-indigo-50 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/10'
+            ? 'bg-zinc-50 border-zinc-200 cursor-not-allowed opacity-60' 
+            : isDragging
+                ? 'bg-blue-50/50 border-blue-500 shadow-inner'
+                : 'bg-white border-zinc-300 hover:border-zinc-500 hover:bg-zinc-50/50'
         }`}
       >
         <input
@@ -60,33 +76,28 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, 
           className="hidden"
           id="file-upload"
         />
-        <label htmlFor="file-upload" className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-          <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-             <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-             </svg>
-          </div>
-          <span className="text-slate-700 font-semibold text-lg mb-1 group-hover:text-indigo-700 transition-colors">
-            Click to upload or drag and drop
-          </span>
-          <span className="text-slate-400 text-sm">
-            Max 4 Images (JPG, PNG, WebP)
-          </span>
-        </label>
-      </div>
-
-      {previews.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
-          {previews.map((src, idx) => (
-            <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm group">
-                <img src={src} alt={`preview ${idx}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-white font-medium text-sm bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">Image {idx + 1}</span>
+        
+        {previews.length > 0 ? (
+             <div className="absolute inset-2 flex gap-2 overflow-hidden pointer-events-none">
+                 {previews.map((src, idx) => (
+                    <div key={idx} className="h-full aspect-square rounded-md overflow-hidden border border-zinc-200 shadow-sm relative">
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                            0{idx + 1}
+                        </div>
+                    </div>
+                ))}
+             </div>
+        ) : (
+            <label htmlFor="file-upload" className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-6 text-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 transition-colors ${isDragging ? 'bg-blue-100 text-blue-600' : 'bg-zinc-100 text-zinc-400 group-hover:bg-zinc-200'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
                 </div>
-            </div>
-          ))}
-        </div>
-      )}
+                <p className="text-sm font-medium text-zinc-700">Drop files here or click to upload</p>
+                <p className="text-xs text-zinc-400 mt-1">Supports JPG, PNG, WebP</p>
+            </label>
+        )}
+      </div>
     </div>
   );
 };

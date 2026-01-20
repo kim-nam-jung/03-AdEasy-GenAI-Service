@@ -39,5 +39,40 @@ export const api = {
             throw new Error(`Error: ${response.statusText}`);
         }
         return response.json();
+    },
+
+    debugAnalyzeStep1: async (file: File, prompt: string): Promise<any> => {
+        const formData = new FormData();
+        formData.append('files', file);
+        formData.append('prompt', prompt);
+
+        const response = await fetch(`${API_URL}/api/v1/debug/step1/analyze`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || `Error: ${response.statusText}`);
+        }
+        return response.json();
+    },
+
+    debugPlanStep2: async (file: File, analysisResult: any, prompt: string): Promise<any> => {
+        const formData = new FormData();
+        formData.append('files', file);
+        formData.append('analysis_data', JSON.stringify(analysisResult));
+        formData.append('prompt', prompt);
+
+        const response = await fetch(`${API_URL}/api/v1/debug/step2/plan`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || `Error: ${response.statusText}`);
+        }
+        return response.json();
     }
 };

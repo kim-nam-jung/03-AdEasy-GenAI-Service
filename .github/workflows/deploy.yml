@@ -1,0 +1,37 @@
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            echo "🚀 Starting Deployment..."
+            
+            # 1. Navigate to project directory
+            # (Adjust this path if your project is in a different folder on the VM)
+            cd /home/spai0437/Development/03-AdEasy-GenAI-Service
+            
+            # 2. Pull latest code
+            echo "📥 Pulling latest code..."
+            git pull origin main
+            
+            # 3. Rebuild and Restart Containers
+            echo "🔄 Rebuilding containers..."
+            # Force recreation to apply new changes
+            docker compose up -d --build --force-recreate
+            
+            # 4. Prune unused images (optional, saves space)
+            docker image prune -f
+            
+            echo "✅ Deployment Complete!"
