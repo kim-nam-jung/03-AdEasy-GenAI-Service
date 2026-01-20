@@ -22,46 +22,52 @@ const STEPS = [
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, currentStep, message, status }) => {
   return (
-    <div className="w-full bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-      <div className="flex justify-between items-center mb-2">
-        <span className={`font-semibold ${status === 'failed' ? 'text-red-600' : 'text-blue-600'}`}>
-          {status === 'failed' ? 'Failed' : status === 'completed' ? 'Completed' : 'Processing...'}
+    <div className="w-full bg-white/50 backdrop-blur-sm p-8 rounded-2xl shadow-sm border border-white/60">
+      <div className="flex justify-between items-center mb-4">
+        <span className={`font-bold text-lg ${status === 'failed' ? 'text-red-600' : 'text-indigo-600'}`}>
+          {status === 'failed' ? 'Generation Failed' : status === 'completed' ? 'Generation Complete' : 'Generating Video...'}
         </span>
-        <span className="text-gray-500 text-sm font-mono">{progress}%</span>
+        <span className="text-slate-500 font-mono font-medium">{progress}%</span>
       </div>
       
       {/* Main Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden mb-4">
+      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mb-6">
         <div 
-          className={`h-full transition-all duration-500 ease-out ${
+          className={`h-full transition-all duration-700 ease-out ${
             status === 'failed' ? 'bg-red-500' : 
-            status === 'completed' ? 'bg-green-500' : 
-            'bg-blue-600 animate-pulse'
+            status === 'completed' ? 'bg-emerald-500' : 
+            'bg-indigo-600 shimmer-effect'
           }`}
           style={{ width: `${Math.max(5, progress)}%` }}
         />
       </div>
       
       {/* Message */}
-      <p className="text-gray-600 text-sm mb-6 text-center italic">{message || "Waiting..."}</p>
+      <p className="text-slate-600 text-sm mb-8 text-center italic opacity-80 animate-pulse">{message || "Waiting..."}</p>
       
       {/* Steps Visualization */}
-      <div className="flex justify-between items-end h-20 text-xs">
+      <div className="relative flex justify-between items-start w-full">
+         {/* Connector Line */}
+         <div className="absolute top-[5px] left-0 w-full h-[2px] bg-slate-200 -z-10" />
+
         {STEPS.map((label, idx) => {
             const isActive = idx === currentStep;
             const isCompleted = idx < currentStep || status === 'completed';
             
+            // Only show checking/active for main milestones to avoid clutter if many steps
+            // Or show all but make them small
+            
             return (
                 <div key={idx} className="flex flex-col items-center flex-1 group">
-                    <div className={`w-3 h-3 rounded-full mb-2 transition-colors ${
-                        isActive ? 'bg-blue-600 scale-125 ring-4 ring-blue-100' : 
-                        isCompleted ? 'bg-green-500' : 
-                        'bg-gray-300'
+                    <div className={`w-3 h-3 rounded-full transition-all duration-300 z-10 ${
+                        isActive ? 'bg-indigo-600 scale-150 ring-4 ring-indigo-100' : 
+                        isCompleted ? 'bg-indigo-400' : 
+                        'bg-slate-300'
                     }`} />
-                    <span className={`text-center transition-colors hidden sm:block ${
-                        isActive ? 'text-blue-700 font-bold' : 
-                        isCompleted ? 'text-green-600' : 
-                        'text-gray-400'
+                    <span className={`text-[10px] sm:text-xs mt-3 text-center transition-colors px-1 ${
+                        isActive ? 'text-indigo-700 font-bold' : 
+                        isCompleted ? 'text-indigo-400' : 
+                        'text-slate-400'
                     }`}>
                         {label}
                     </span>
