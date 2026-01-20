@@ -15,6 +15,8 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          port: 22
+          debug: true
           script: |
             echo "🚀 Starting Deployment..."
             
