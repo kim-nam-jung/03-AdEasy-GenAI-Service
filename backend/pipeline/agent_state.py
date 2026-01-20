@@ -27,6 +27,7 @@ class AgentState(TypedDict):
     thumbnail_path: str  # Path to video thumbnail
     
     # Reflection / Error Handling
+    vision_analysis: Dict[str, Any]  # Output of vision_parsing_tool
     error: Union[str, None]
     retry_count: Dict[str, int]  # Track retries per step
     reflection_history: Annotated[List[str], operator.add]  # Log of supervisor thoughts

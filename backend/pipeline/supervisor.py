@@ -14,16 +14,25 @@ class SupervisorAgent:
     Can patch configuration for retries.
     """
     def __init__(self, cfg: Config, task_id: str, redis_mgr: RedisManager):
-        self.cfg = cfg
         self.task_id = task_id
-        # Initialize GPT-4o for reflection
-        import os
-        openai_key = os.getenv("OPENAI_API_KEY")
         
+        # Determine LLM settings
+        from app.core.config import settings
+        import os
+        
+        base_url = settings.VLLM_URL
+        model_name = settings.VLLM_MODEL
+        api_key = os.getenv("OPENAI_API_KEY", "no-key") # API key still needed by client even if local
+        
+        if not base_url:
+            model_name = "gpt-4o"
+            api_key = os.getenv("OPENAI_API_KEY")
+
         self.llm = ChatOpenAI(
-            model="gpt-4o",
+            model=model_name,
             temperature=0,
-            openai_api_key=openai_key,
+            openai_api_key=api_key,
+            openai_api_base=base_url,
             streaming=True,
             callbacks=[RedisStreamingCallback(redis_mgr, task_id)]
         )
@@ -49,10 +58,11 @@ class SupervisorAgent:
         system_prompt = """
 You are the Supervisor for a 3-step video generation pipeline:
 
-**Pipeline**: Step 1 (Segmentation) → Step 2 (Video Generation) → Step 3 (Post-processing)
+**Pipeline**: Vision (Parsing) → Step 1 (Segmentation) → Step 2 (Video Generation) → Step 3 (Post-processing)
 
 **Current Step**: {current_step}
 **Result Summary**: {result_summary}
+**Vision Analysis**: {vision_analysis}
 **Current Config**: {config}
 **Retry Count**: {retry_count}
 
@@ -61,11 +71,13 @@ You are the Supervisor for a 3-step video generation pipeline:
 2. **Decision**: Choose one of:
    - "proceed": Move to next step (good quality)
    - "retry": Re-run current step (low quality, retry_count < 2)
-   - "fail": Abort pipeline (critical error or max retries)
+   - "ask_human": Request user intervention (low quality, retry_count >= 2)
+   - "fail": Abort pipeline (critical error)
 3. **Routing**: Determine next_step
 4. **Config Patch**: (Only for retry) Adjust parameters to improve quality
 
 **Quality Criteria**:
+- Vision: Accurate product description and useful segmentation/video hints
 - Step 1: Clean segmentation, no background noise
 - Step 2: Smooth motion, product stays centered
 - Step 3: No artifacts from interpolation/upscaling
@@ -78,8 +90,8 @@ You are the Supervisor for a 3-step video generation pipeline:
 Return JSON:
 {{
     "reflection": "Quality analysis...",
-    "decision": "proceed" | "retry" | "fail",
-    "next_step": "step1" | "step2" | "step3" | "end",
+    "decision": "proceed" | "retry" | "ask_human" | "fail",
+    "next_step": "vision" | "step1" | "step2" | "step3" | "end",
     "config_patch": {{...}}  // Only if decision="retry"
 }}
 """
@@ -105,6 +117,7 @@ Return JSON:
             response = chain.invoke({
                 "current_step": current_step,
                 "result_summary": result_summary,
+                "vision_analysis": str(state.get("vision_analysis", {})),
                 "config": str(state.get("config", {})),
                 "retry_count": retry_count
             })
@@ -122,7 +135,7 @@ Return JSON:
 
     def _get_default_next(self, current_step: str) -> str:
         """Get next step in sequence"""
-        steps = ["start", "step1", "step2", "step3", "end"]
+        steps = ["start", "vision", "step1", "step2", "step3", "end"]
         try:
             idx = steps.index(current_step)
             return steps[idx + 1] if idx + 1 < len(steps) else "end"

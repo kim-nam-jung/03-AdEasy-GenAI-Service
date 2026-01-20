@@ -1,7 +1,7 @@
 import os
 import yaml
 from pathlib import Path
-from typing import List, Union, Any, Dict
+from typing import List, Union, Any, Dict, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, validator
 
@@ -26,10 +26,14 @@ class Settings(BaseSettings):
     OUTPUT_DIR: str = "/app/outputs"
     MODEL_DIR: str = "/app/models"
     
+    # vLLM
+    VLLM_URL: Optional[str] = None  # e.g., "http://localhost:8000/v1"
+    VLLM_MODEL: str = "Qwen/Qwen2.5-7B-Instruct"
+    
     # Security
     API_KEY: str = "adeasy-secret-key"
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra='ignore')
 
 settings = Settings()
 

@@ -6,6 +6,7 @@ import { ProgressBar } from './components/ProgressBar'
 import { ResultGallery } from './components/ResultGallery'
 import { ReflectionLog } from './components/ReflectionLog'
 import { PipelineLab } from './components/PipelineLab'
+import { ToastContainer } from './components/ToastContainer';
 
 function App() {
   const [currentView, setCurrentView] = useState<'create' | 'lab'>('create');
@@ -185,6 +186,7 @@ function App() {
             </div>
         </div>
       )}
+      <ToastContainer />
     </Layout>
   )
 }

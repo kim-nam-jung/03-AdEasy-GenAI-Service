@@ -68,67 +68,74 @@ class RIFELoader:
     ) -> str:
         """
         Interpolate frames in video to increase FPS.
-        
-        Args:
-            input_video_path: Path to input video
-            output_video_path: Path to save interpolated video
-            target_fps: Target FPS after interpolation
-            scale: Upscaling factor (1.0 = no scaling)
-            
-        Returns:
-            Path to interpolated video
+        Optimized to stream frames (O(1) memory) instead of loading all (O(N)).
         """
         if self.model is None:
             raise RuntimeError("Model not loaded. Call load() first.")
             
-        logger.info(f"Interpolating video to {target_fps} FPS")
+        logger.info(f"Interpolating video to {target_fps} FPS (Streaming Mode)")
         
         try:
             # Read input video
             cap = cv2.VideoCapture(input_video_path)
+            if not cap.isOpened():
+                raise RuntimeError(f"Could not open video: {input_video_path}")
+                
             original_fps = cap.get(cv2.CAP_PROP_FPS)
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             
+            if original_fps <= 0:
+                original_fps = 24 # Fallback
+                
             # Calculate interpolation factor
+            # RIFE typically does 2x, 4x. We handle simple N x or approximation.
+            # If target is 48 and original is 24, factor is 2.
+            # If target is 60 and original is 24, factor is 2.5 (RIFE usually does power of 2 recursive, but we'll do linear for now if model supports t)
             interp_factor = int(target_fps / original_fps)
-            
+            if interp_factor < 2:
+                interp_factor = 2 # Force at least 2x if enabled
+                
             logger.info(f"Original: {original_fps} FPS, Target: {target_fps} FPS, Factor: {interp_factor}x")
             
             # Setup output video writer
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_video_path, fourcc, target_fps, (width, height))
+            # Update output FPS to match the interpolation
+            # If we create 'interp_factor' frames for every 1 input, output fps = input_fps * factor
+            real_target_fps = original_fps * interp_factor
+            out = cv2.VideoWriter(output_video_path, fourcc, real_target_fps, (width, height))
             
-            # Read all frames
-            frames = []
+            # Stream Processing
+            ret, prev_frame = cap.read()
+            if not ret:
+                raise RuntimeError("Video has no frames")
+                
+            # Process loop
             while True:
-                ret, frame = cap.read()
+                ret, curr_frame = cap.read()
                 if not ret:
                     break
-                frames.append(frame)
-            cap.release()
-            
-            # Interpolate between each pair of frames
-            interpolated_frames = []
-            for i in range(len(frames) - 1):
-                frame0 = self._preprocess_frame(frames[i])
-                frame1 = self._preprocess_frame(frames[i + 1])
+                    
+                # 1. Write previous frame (Start of interval)
+                out.write(prev_frame)
                 
-                # Add original frame
-                interpolated_frames.append(frames[i])
+                # 2. Generate intermediates
+                # Preprocess pair
+                f0 = self._preprocess_frame(prev_frame)
+                f1 = self._preprocess_frame(curr_frame)
                 
-                # Generate intermediate frames
                 for j in range(1, interp_factor):
                     timestep = j / interp_factor
-                    interp_frame = self._infer(frame0, frame1, timestep)
-                    interpolated_frames.append(interp_frame)
+                    mid_frame = self._infer(f0, f1, timestep)
+                    out.write(mid_frame)
+                
+                # Move window
+                prev_frame = curr_frame
+                
+            # Write last frame
+            out.write(prev_frame)
             
-            # Add last frame
-            interpolated_frames.append(frames[-1])
-            
-            # Write interpolated frames
-            for frame in interpolated_frames:
-                out.write(frame)
+            cap.release()
             out.release()
             
             logger.info(f"Interpolated video saved to: {output_video_path}")

@@ -19,6 +19,9 @@ async def create_task(
     """
     Create a new generation task with image uploads.
     """
+    MAX_FILE_SIZE = 50 * 1024 * 1024 # 50MB
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+    
     if len(files) == 0:
         raise HTTPException(status_code=400, detail="No images uploaded")
     if len(files) > 4:
@@ -38,15 +41,35 @@ async def create_task(
     
     try:
         for idx, file in enumerate(files):
+            # 1. Check size (roughly, UploadFile doesn't always show size directly but we can read/seek or check header)
+            # Fastapi SpooledTemporaryFile might not expose easy size check without reading.
+            # But we can check content-length header if reliable, or count bytes while reading.
+            # Simple check: Content-Type header
+            if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+                 raise HTTPException(status_code=400, detail=f"Invalid file type: {file.filename}. Only JPG/PNG/WEBP allowed.")
+            
+            # Simple extension check
+            ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+            if ext not in ALLOWED_EXTENSIONS:
+                 raise HTTPException(status_code=400, detail=f"Invalid extension: {file.filename}")
+            
             # 1-based index (image_1.jpg)
-            # Preserve extension or convert? simple approach: use extension
-            ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
             dest_path = paths.input_image(idx + 1, ext)
             
+            # Write and validate size
+            size = 0
             with open(dest_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+                while content := await file.read(1024 * 1024): # Read in 1MB chunks
+                    size += len(content)
+                    if size > MAX_FILE_SIZE:
+                        # cleanup
+                        buffer.close()
+                        shutil.rmtree(paths.inputs_task_dir, ignore_errors=True)
+                        raise HTTPException(status_code=400, detail=f"File too large: {file.filename} (Max 50MB)")
+                    buffer.write(content)
             
             saved_paths.append(str(dest_path))
+            await file.close()
             
     except Exception as e:
         # Cleanup if failed
@@ -85,3 +108,27 @@ async def get_task(task_id: str):
         }
     
     return status_data
+
+@router.post("/{task_id}/feedback")
+async def submit_feedback(task_id: str, feedback: str = Form(...)):
+    """
+    Submit human feedback for a paused/failed task.
+    This effectively acknowledges the 'ask_human' request.
+    """
+    redis_mgr = RedisManager.from_env()
+    
+    # Log the feedback
+    redis_mgr.set_status(
+        task_id=task_id,
+        status="feedback_received", 
+        message="User provided feedback. Ready to resume.",
+        extra={"user_feedback": feedback}
+    )
+    
+    # Publish event to clear UI
+    redis_mgr.publish(f"task:{task_id}", {
+        "type": "human_input_received",
+        "feedback": feedback
+    })
+    
+    return {"status": "received", "feedback": feedback}

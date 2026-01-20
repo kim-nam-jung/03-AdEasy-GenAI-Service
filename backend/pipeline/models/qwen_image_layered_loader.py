@@ -6,7 +6,11 @@ Official API: https://huggingface.co/Qwen/Qwen-Image-Layered
 """
 import torch
 from PIL import Image
-from diffusers import QwenImageLayeredPipeline
+try:
+    from diffusers import QwenImageLayeredPipeline
+except ImportError:
+    # Handle cases where the specific pipeline is not available/installed
+    QwenImageLayeredPipeline = None
 from typing import List, Optional
 import logging
 

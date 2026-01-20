@@ -22,6 +22,13 @@ class RedisManager:
 
     def __post_init__(self) -> None:
         self._r = redis.from_url(self.redis_url, decode_responses=True)
+        self.client = self._r
+
+    def publish(self, channel: str, message: Any) -> int:
+        """Publish a message to a channel."""
+        if not isinstance(message, str):
+            message = json.dumps(message, ensure_ascii=False)
+        return self._r.publish(channel, message)
 
     def ping(self) -> bool:
         return bool(self._r.ping())

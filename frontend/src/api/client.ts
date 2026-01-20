@@ -60,11 +60,12 @@ export const api = {
         return response.json();
     },
 
-    debugStep1Segmentation: async (file: File, numLayers: number, resolution: number): Promise<any> => {
+    debugStep1Segmentation: async (file: File, numLayers: number, resolution: number, taskId?: string): Promise<any> => {
         const formData = new FormData();
         formData.append('files', file);
         formData.append('num_layers', numLayers.toString());
         formData.append('resolution', resolution.toString());
+        if (taskId) formData.append('task_id', taskId);
 
         const response = await fetch(`${API_URL}/api/v1/debug/step1/segmentation`, {
             method: 'POST',
@@ -81,11 +82,12 @@ export const api = {
         return response.json();
     },
 
-    debugStep2VideoGeneration: async (imagePath: string, prompt: string, numFrames: number): Promise<any> => {
+    debugStep2VideoGeneration: async (imagePath: string, prompt: string, numFrames: number, taskId?: string): Promise<any> => {
         const formData = new FormData();
         formData.append('main_product_layer', imagePath);
         formData.append('prompt', prompt);
         formData.append('num_frames', numFrames.toString());
+        if (taskId) formData.append('task_id', taskId);
 
         const response = await fetch(`${API_URL}/api/v1/debug/step2/video_generation`, {
             method: 'POST',
@@ -102,11 +104,17 @@ export const api = {
         return response.json();
     },
 
-    debugStep3Postprocess: async (videoPath: string, rifeEnabled: boolean, cuganEnabled: boolean): Promise<any> => {
+    debugStep3Postprocess: async (videoPath: string, rifeEnabled: boolean, cuganEnabled: boolean, prompt?: string, taskId?: string): Promise<any> => {
         const formData = new FormData();
         formData.append('raw_video_path', videoPath);
         formData.append('rife_enabled', rifeEnabled.toString());
         formData.append('cugan_enabled', cuganEnabled.toString());
+        if (prompt) {
+            formData.append('prompt', prompt);
+        }
+        if (taskId) {
+            formData.append('task_id', taskId);
+        }
 
         const response = await fetch(`${API_URL}/api/v1/debug/step3/postprocess`, {
             method: 'POST',
