@@ -56,7 +56,13 @@ jobs:
             fi
             
             echo "Using command: $DOCKER_CMD"
-            $DOCKER_CMD down
+            $DOCKER_CMD down --remove-orphans
+            
+            # Ensure ports 3000 and 8000 are free (sometimes containers don't release them fast enough or orphaned processes exist)
+            echo "🧹 Clearing ports 3000 and 8000..."
+            sudo fuser -k 3000/tcp || echo "Port 3000 already free"
+            sudo fuser -k 8000/tcp || echo "Port 8000 already free"
+            
             $DOCKER_CMD up -d --build --force-recreate
             
             # 5. Prune unused images
