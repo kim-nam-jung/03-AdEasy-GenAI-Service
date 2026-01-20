@@ -52,6 +52,14 @@ export const api = {
             headers: getHeaders(false),
         });
 
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Error: ${response.statusText}`);
+        }
+        
+        return response.json();
+    },
+
     debugStep1Segmentation: async (file: File, numLayers: number, resolution: number): Promise<any> => {
         const formData = new FormData();
         formData.append('files', file);
