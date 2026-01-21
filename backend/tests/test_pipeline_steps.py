@@ -9,7 +9,7 @@ def mock_vram():
     return MagicMock()
 
 def test_step1_segmentation_execute(mock_vram):
-    with patch("pipeline.step1_segmentation.QwenImageLayeredLoader") as mock_loader, \
+    with patch("pipeline.step1_segmentation.SAM2Loader") as mock_loader, \
          patch("pipeline.step1_segmentation.TaskPaths.from_repo") as mock_paths:
         
         # Mock paths
@@ -19,15 +19,15 @@ def test_step1_segmentation_execute(mock_vram):
         
         # Mock loader results
         mock_img = MagicMock()
-        mock_loader.return_value.segment.return_value = [mock_img]
+        mock_loader.return_value.segment_product.return_value = mock_img
         
         step = Step1Segmentation(mock_vram)
         result = step.execute("task123", ["img.jpg"], {"segmentation": {"num_layers": 1}})
         
         assert "segmented_layers" in result
-        assert result["metadata"]["num_layers"] == 1
-        mock_vram.load_model.assert_called_with("qwen_layered", mock_loader.return_value)
-        mock_vram.unload_model.assert_called_with("qwen_layered")
+        assert "main_product_layer" in result
+        mock_vram.load_model.assert_called_with("sam2", mock_loader.return_value)
+        mock_vram.unload_model.assert_called_with("sam2")
 
 def test_step2_video_gen_execute(mock_vram):
     with patch("pipeline.step2_video_generation.LTX2ProLoader") as mock_loader, \

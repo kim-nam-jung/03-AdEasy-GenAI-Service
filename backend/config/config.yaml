@@ -15,96 +15,35 @@ paths:
   fonts_dir: "assets/fonts"
 
 models:
-  cache_dir: "/home/spai0432/cache/hf"
+  cache_dir: "/home/spai0437/cache/hf"
   
-  # Step 0: 배경 제거
-  fastsam:
-    local_dir: "models/fastsam"
+  # Step 1: Segmentation (SAM 2)
+  sam2:
+    repo_id: "facebook/sam2-hiera-large"
+    local_dir: "models/sam2"
     device: "cuda"
+    dtype: "bfloat16"
   
-  # Step 1: 이미지 이해 (Qwen2-VL-7B)
-  qwen_vl:
-    repo_id: "Qwen/Qwen2-VL-7B-Instruct"
-    local_dir: "models/Qwen2-VL-7B-Instruct"
-    device: "cuda"
-    quantization: "8bit"
-    max_tokens: 512
-    use_flash_attention: true  # ← 추가
-  
-  # Step 1.5 & Step 2: 프롬프트 증강 & 광고 기획 (Qwen2.5-14B) ← 업그레이드
-  qwen_llm:
-    repo_id: "Qwen/Qwen2.5-14B-Instruct"  # ← 7B → 14B
-    local_dir: "models/Qwen2.5-14B-Instruct"
-    device: "cuda"
-    quantization: "8bit"
-    temperature: 0.7
-    max_tokens: 2048  # ← 1024 → 2048 (AdPlan 생성용)
-    top_p: 0.9
-    repetition_penalty: 1.1
-  
-  # Step 3: 제어맵 생성
-  controlnet:
-    # Canny Edge Detection
-    canny:
-      enabled: true
-      low_threshold: 50
-      high_threshold: 150
-      conditioning_scale: 0.8
-    
-    # MiDaS Depth Estimation
-    depth:
-      enabled: true  # ← 선택 사항 (Step 3 테스트에서는 Canny만 사용)
-      repo_id: "intel-isl/MiDaS"
-      model_type: "DPT_Large"
-      local_dir: "models/MiDaS"
-      device: "cuda"
-      conditioning_scale: 0.5
-  
-  # Step 4: 키프레임 생성 (SDXL 1.0 + ControlNet)
-  sdxl:
-    repo_id: "stabilityai/stable-diffusion-xl-base-1.0"
-    local_dir: "models/SDXL-1.0"
-    controlnet_repo_id: "diffusers/controlnet-canny-sdxl-1.0"
-    controlnet_local_dir: "models/controlnet-canny-sdxl-1.0"
-    device: "cuda"
-    quantization: "8bit"  # ← 추가 (VRAM 절감)
-    steps: 30
-    guidance_scale: 7.5
-    controlnet_conditioning_scale: 0.8
-    negative_prompt: "blurry, low quality, distorted, ugly, watermark, text, logo, deformed"
-  
-  # Step 5: 영상 생성 (LTX-Video 2 Pro) ← 업그레이드
+  # Step 2: Video Generation (LTX-Video 2 Pro)
   ltx_video:
-    repo_id: "Lightricks/LTX-Video-2-Pro-13B" # Assuming this ID based on user request "LTX-2 pro"
-    local_dir: "models/LTX-Video-2-Pro-13B"
+    repo_id: "Lightricks/LTX-2"
+    local_dir: "models/LTX-2"
     device: "cuda"
-    use_cpu_offload: true
-    use_gradient_checkpointing: true
-    
-    # Step 5 최적화 설정
-    duration: 2.0
-    fps: 24
-    num_inference_steps: 30 # Pro 모델이라 30으로 복귀 (Config에서 오버라이드 가능)
-    guidance_scale: 7.5
-    width: 768   # 조금 더 고화질 (Pro)
-    height: 1344 
-    
-    note: |
-      LTX-2 Pro (13B) 설정:
-      - CPU Offload 필수
-      - duration=2.0s 권장
+    use_fp8: true
   
-  # Step 6: 후처리
+  # Step 3: Post-processing
   rife:
-    model: "rife-v4.6"
+    repo_id: "zylucky/RIFE" # Example repository that might have it, or we'll download specific weights
     local_dir: "models/rife"
+    version: "4.26"
     device: "cuda"
   
-  esrgan:
-    local_dir: "models/Real-ESRGAN"
+  esrgan: # For Real-CUGAN/Upscaling
+    repo_id: "bilibili/ailab-models" # Placeholder
+    local_dir: "models/real-cugan"
     device: "cuda"
     scale: 2
-    model_name: "RealESRGAN_x2plus"
+    model_name: "pro"
 
 # Step 5 영상 설정 ← 업데이트
 video:

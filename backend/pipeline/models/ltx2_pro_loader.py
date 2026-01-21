@@ -19,20 +19,23 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class LTX2ProLoader:
-    def __init__(self, device: str = "cuda", use_fp8: bool = False):
+    """Loader for LTX-Video model."""
+    
+    def __init__(self, model_id: str = "Lightricks/LTX-Video-0.9.8-dev", device: str = "cuda", use_fp8: bool = False):
         """
         Initialize LTX-Video loader.
         
         Args:
+            model_id: HuggingFace model ID
             device: Device to load model on ("cuda" or "cpu")
             use_fp8: Use FP8 quantization (not yet available, placeholder)
         """
         self.device = device
         self.use_fp8 = use_fp8  # Placeholder for future FP8 support
         self.pipeline = None
-        # Using LTX-Video 0.9.8 (latest stable version)
-        self.model_id = "Lightricks/LTX-Video-0.9.8-dev"
+        self.model_id = model_id
         
     def load(self):
         """Load the LTX-Video pipeline."""

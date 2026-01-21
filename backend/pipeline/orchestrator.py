@@ -2,8 +2,8 @@
 """
 Video Generation Pipeline Orchestrator (3-Step Simplified)
 
-Step 1: Segmentation (Qwen-Image-Layered)
-Step 2: Video Generation (LTX-Video)
+Step 1: Segmentation (SAM 2)
+Step 2: Video Generation (LTX-2 FP8)
 Step 3: Post-processing (RIFE + Real-CUGAN + FFmpeg)
 """
 

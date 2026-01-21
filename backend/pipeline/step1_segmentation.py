@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 import logging
 from datetime import datetime
 
-from pipeline.models.qwen_image_layered_loader import QwenImageLayeredLoader
+from pipeline.models.sam2_loader import SAM2Loader
 from common.paths import TaskPaths
 
 logger = logging.getLogger(__name__)
@@ -56,39 +56,31 @@ class Step1Segmentation:
             input_image = image_paths[0]
             
             # Load model
-            self.loader = QwenImageLayeredLoader()
-            self.vram_manager.load_model("qwen_layered", self.loader)
+            self.loader = SAM2Loader()
+            self.vram_manager.load_model("sam2", self.loader)
             
-            # Perform segmentation
-            layers = self.loader.segment(
-                image_path=input_image,
-                num_layers=num_layers,
-                resolution=resolution
+            # Perform segmentation (Product only)
+            product_image = self.loader.segment_product(
+                image_path=input_image
             )
             
-            # Save layers to disk
+            # Save results
             output_dir = TaskPaths.from_repo(task_id).outputs_task_dir / "segmentation"
             output_dir.mkdir(parents=True, exist_ok=True)
-            
-            layer_paths = []
-            for idx, layer in enumerate(layers):
-                layer_path = output_dir / f"layer_{idx}.png"
-                layer.save(layer_path)
-                layer_paths.append(str(layer_path))
-                
-            # Assume first layer is main product
-            main_product_layer = layer_paths[0]
-            
+
+            product_layer_path = output_dir / "product_layer.png"
+            product_image.save(product_layer_path)
+
             # Unload model
-            self.vram_manager.unload_model("qwen_layered")
-            
-            logger.info(f"[Step 1] Segmentation complete: {len(layers)} layers extracted")
-            
+            self.vram_manager.unload_model("sam2")
+
+            logger.info(f"[Step 1] Segmentation complete: Product extracted")
+
             return {
-                "segmented_layers": layer_paths,
-                "main_product_layer": main_product_layer,
+                "segmented_layers": [str(product_layer_path)],
+                "main_product_layer": str(product_layer_path),
                 "metadata": {
-                    "num_layers": len(layers),
+                    "method": "SAM 2",
                     "resolution": resolution,
                     "timestamp": datetime.now().isoformat()
                 }
@@ -98,5 +90,5 @@ class Step1Segmentation:
             logger.error(f"[Step 1] Segmentation failed: {e}")
             # Ensure cleanup
             if self.loader:
-                self.vram_manager.unload_model("qwen_layered")
+                self.vram_manager.unload_model("sam2")
             raise

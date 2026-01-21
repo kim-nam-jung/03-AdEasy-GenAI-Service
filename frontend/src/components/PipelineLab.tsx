@@ -12,7 +12,7 @@ export const PipelineLab: React.FC = () => {
         visionResult, segmentationResult, rawVideoResult, finalResult,
         showFeedbackModal, feedbackQuestion, feedbackContext,
         
-        setTaskId, setStatus, setProgress, addLog, clearLogs,
+        setTaskId, setStatus, setProgress, addLog,
         setVisionResult, setSegmentationResult, setVideoResult, setFinalResult,
         setActiveTab, setIsProcessing,
         openFeedbackModal, closeFeedbackModal, resetPipeline
@@ -270,7 +270,6 @@ export const PipelineLab: React.FC = () => {
                                         data-debug-processing={isProcessing.toString()}
                                         data-debug-files={selectedFiles.length}
                                     >
-                                        {console.log(`[DEBUG] Button State: isProcessing=${isProcessing}, files=${selectedFiles.length}`)}
                                         {isProcessing ? "Agent Working..." : "Start Agent Task"}
                                     </button>
                                 </div>

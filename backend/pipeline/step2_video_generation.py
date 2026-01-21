@@ -1,6 +1,6 @@
 """
 Step 2: Video Generation
-Uses LTX-2 Pro to generate video from segmented product image.
+Uses LTX-2 FP8 to generate video from segmented product image.
 """
 from pathlib import Path
 from typing import Dict, Any
@@ -48,17 +48,20 @@ class Step2VideoGeneration:
         
         try:
             # Get LTX-2 config
-            ltx_config = config.get("ltx2", {})
+            ltx_config = config.get("ltx_video", {})
+            repo_id = ltx_config.get("repo_id", "Lightricks/LTX-2")
+            use_fp8 = ltx_config.get("use_fp8", True)
+            
             num_frames = ltx_config.get("num_frames", 33)
-            width = ltx_config.get("width", 768)
-            height = ltx_config.get("height", 1344)
+            width = ltx_config.get("width", 832)
+            height = ltx_config.get("height", 480)
             fps = ltx_config.get("fps", 24)
-            num_inference_steps = ltx_config.get("num_inference_steps", 25)
+            num_inference_steps = ltx_config.get("num_inference_steps", 30)
             guidance_scale = ltx_config.get("guidance_scale", 7.5)
             seed = ltx_config.get("seed", None)
             
             # Load model
-            self.loader = LTX2ProLoader(use_fp8=True)
+            self.loader = LTX2ProLoader(model_id=repo_id, use_fp8=use_fp8)
             self.vram_manager.load_model("ltx2_pro", self.loader)
             
             # Generate video
