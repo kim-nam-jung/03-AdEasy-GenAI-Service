@@ -64,8 +64,8 @@ jobs:
             # 3. Pull LFS objects if any
             git lfs pull || echo "⚠️ Git LFS pull failed or not installed, skipping..."
             
-            # 4. Rebuild and Restart Containers
-            echo "🔄 Rebuilding containers..."
+            # 4. Smart Container Update (Build only if needed)
+            echo "🔄 Updating containers..."
             # Try Docker Compose V2 first, then V1
             if docker compose version > /dev/null 2>&1; then
                 DOCKER_CMD="docker compose"
@@ -74,16 +74,23 @@ jobs:
             fi
             
             echo "Using command: $DOCKER_CMD"
-            $DOCKER_CMD down --remove-orphans
             
-            # Ensure ports 3000 and 8000 are free (sometimes containers don't release them fast enough or orphaned processes exist)
+            # Pull latest base images (fast if cached)
+            $DOCKER_CMD pull --quiet || echo "⚠️ Pull failed, continuing..."
+            
+            # Build only if Dockerfile or dependencies changed
+            # Docker will use cached layers for unchanged parts
+            $DOCKER_CMD build --pull
+            
+            # Ensure ports 3000 and 8000 are free
             echo "🧹 Clearing ports 3000 and 8000..."
             sudo fuser -k 3000/tcp || echo "Port 3000 already free"
             sudo fuser -k 8000/tcp || echo "Port 8000 already free"
             
-            $DOCKER_CMD up -d --build --force-recreate
+            # Restart containers (recreate only if image changed)
+            $DOCKER_CMD up -d --remove-orphans
             
-            # 5. Prune unused images
+            # 5. Prune dangling images only (not all unused)
             docker image prune -f
             
             echo "✅ Deployment Complete!"
