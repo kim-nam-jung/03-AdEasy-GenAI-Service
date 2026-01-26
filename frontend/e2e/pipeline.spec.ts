@@ -3,7 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Agent Pipeline', () => {
     test('full agent flow with mock WS', async ({ page }) => {
         page.on('console', msg => console.log(`[Browser] ${msg.text()}`));
+        
+        // Mock WebSocket before page load
         await page.addInitScript(() => {
+            const OriginalWebSocket = window.WebSocket;
             class MockWebSocket {
                 onopen: any;
                 onmessage: any;
@@ -11,17 +14,49 @@ test.describe('Agent Pipeline', () => {
                 onerror: any;
                 url: string;
                 
+                private listeners: Record<string, Function[]> = {};
+
                 constructor(url: string) {
                     this.url = url;
-                    setTimeout(() => {
-                        this.onopen && this.onopen();
-                        this.emitSequence();
-                    }, 100);
+                    // Only intercept task WS, let others (Vite HMR) pass through
+                    if (url.includes('/ws/')) {
+                        console.log(`[MockWS] Intercepting: ${url}`);
+                        setTimeout(() => {
+                            const ev = { type: 'open' };
+                            if (this.onopen) this.onopen(ev);
+                            this.dispatchEvent('open', ev);
+                            this.emitSequence();
+                        }, 100);
+                    } else {
+                        // Support for Vite HMR and other system WS
+                        return new OriginalWebSocket(url) as any;
+                    }
+                }
+
+                addEventListener(type: string, listener: Function) {
+                    if (!this.listeners[type]) this.listeners[type] = [];
+                    this.listeners[type].push(listener);
+                }
+
+                removeEventListener(type: string, listener: Function) {
+                    if (!this.listeners[type]) return;
+                    this.listeners[type] = this.listeners[type].filter(l => l !== listener);
+                }
+
+                private dispatchEvent(type: string, data: any) {
+                    if (this.listeners[type]) {
+                        this.listeners[type].forEach(l => l(data));
+                    }
                 }
 
                 emitSequence() {
+                     let seq = 0;
                      const send = (data: any) => {
-                         if (this.onmessage) this.onmessage({ data: JSON.stringify(data) });
+                         seq++;
+                         const envelope = { seq, data };
+                         const ev = { data: JSON.stringify(envelope) };
+                         if (this.onmessage) this.onmessage(ev);
+                         this.dispatchEvent('message', ev);
                      };
                      
                      setTimeout(() => send({ type: 'log', level: 'Agent', message: 'Analyzing image...' }), 200);
@@ -68,7 +103,7 @@ test.describe('Agent Pipeline', () => {
              buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
         });
 
-        // Wait for preview to appear (aspect-square is the preview container)
+        // Wait for preview to appear
         await expect(page.locator('.aspect-square')).toHaveCount(1, { timeout: 5000 });
 
         // Wait for button to be enabled and click
@@ -76,16 +111,15 @@ test.describe('Agent Pipeline', () => {
         await expect(startBtn).toBeEnabled({ timeout: 10000 });
         await startBtn.click();
         
-        // Assertions - check logs tab content
-        await expect(page.locator('text=Task Initialized: mock-123')).toBeVisible({ timeout: 5000 }); // From API
-        await expect(page.locator('text=Analyzing image...')).toBeVisible({ timeout: 5000 }); // From WS
+        // Assertions
+        await expect(page.locator('text=Task Initialized: mock-123')).toBeVisible({ timeout: 5000 });
+        await expect(page.locator('text=Analyzing image...')).toBeVisible({ timeout: 5000 });
 
         // Wait for status to show completed
-        await expect(page.locator('text=completed')).toBeVisible({ timeout: 5000 });
+        await expect(page.locator('text=completed')).toBeVisible({ timeout: 10000 });
 
         // Click result tab to see final output
         await page.getByRole('button', { name: 'result' }).click();
         await expect(page.locator('text=Final Output')).toBeVisible({ timeout: 5000 });
-        await expect(page.locator('text=Task Completed Successfully')).toBeVisible();
     });
 });

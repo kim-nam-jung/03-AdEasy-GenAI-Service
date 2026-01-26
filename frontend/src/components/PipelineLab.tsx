@@ -16,7 +16,7 @@ export const PipelineLab: React.FC = () => {
         setTaskId, setStatus, setProgress,
         setVisionResult, setSegmentationResult, setVideoResult, setFinalResult,
         setActiveTab, setIsProcessing,
-        openFeedbackModal, closeFeedbackModal, resetPipeline
+        openFeedbackModal, closeFeedbackModal, updateTaskStatus, resetPipeline
     } = usePipelineStore();
     
     // Toast
@@ -163,6 +163,7 @@ export const PipelineLab: React.FC = () => {
             
             const data = await res.json();
             setTaskId(data.task_id);
+            addToast('success', `Task Initialized: ${data.task_id}`);
             console.log(`[System] Task Initialized: ${data.task_id}`);
             
         } catch (err: any) {

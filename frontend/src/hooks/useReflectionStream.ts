@@ -100,6 +100,14 @@ export function useReflectionStream(taskId: string | null) {
                     isComplete: true,
                     timestamp: new Date().toLocaleTimeString()
                 }]);
+            } else if (msgData.type === 'log') {
+                setLogs(prev => [...prev, {
+                    id: Date.now(),
+                    type: 'thought',
+                    content: msgData.message,
+                    isComplete: true,
+                    timestamp: new Date().toLocaleTimeString()
+                }]);
             }
         };
 
