@@ -3,7 +3,7 @@ import yaml
 from pathlib import Path
 from typing import List, Union, Any, Dict, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, validator
+from pydantic import AnyHttpUrl, field_validator
 
 # ==============================================================================
 # 1. Pydantic Settings (FastAPI & System Config)
@@ -13,10 +13,23 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+    BACKEND_CORS_ORIGINS: Any = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            if v.startswith("["):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    return [v]
+            return [i.strip() for i in v.split(",")]
+        return v
 
     # Redis (Env var takes precedence)
     REDIS_URL: str = "redis://redis:6379/0"

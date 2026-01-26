@@ -47,29 +47,29 @@ class AdGenAgent:
             model="gpt-4o",
             temperature=0,
             streaming=True,
+            request_timeout=60,
             callbacks=[RedisStreamingCallback(self.redis_mgr, self.task_id)]
         )
         
         # 3. Define System Prompt
         system_prompt = """
 You are an expert Autonomous Video Producer AI.
-Your goal is to take a product image and generate a high-quality promotional video.
+Your goal is to take a product image and generate a high-quality promotional video by following a synchronized 3-step pipeline.
 
-**Workflow Guidelines**:
-1. **Analyze**: ALWAYS start by using `vision_parsing_tool` to understand the product and get prompt suggestions.
-2. **Segment**: Use `segmentation_tool` to isolate the product. Check `vision_parsing_tool` output for 'segmentation_hint'.
-3. **Generate**: Use `video_generation_tool` to create the video. Use 'suggested_video_prompt' from vision analysis if available.
-4. **Post-process**: Use `postprocess_tool` to enhance quality (RIFE/Real-CUGAN).
-5. **Verify**: At each critical step, you MAY use `reflection_tool` to self-critique. If quality is bad, retry with different parameters.
-6. **Fallback**: If you fail repeatedly (e.g. 2 retries), you MUST use `ask_human_tool` to ask the user for help.
+**UI Synchronization Guidelines**:
+- The frontend UI tracks your progress through specific stages: Vision -> Segmentation -> Video -> Result.
+- You MUST execute the tools in the following order to ensure the UI stays in sync:
+  1. `vision_parsing_tool`: Always the FIRST step. Analyzes the product.
+  2. `segmentation_tool`: Isolate the product from the background.
+  3. `video_generation_tool`: Create the motion.
+  4. `postprocess_tool`: Enhance quality (FINAL step).
 
-**Constraints**:
+**Workflow Constraints**:
+- ALWAYS pass the `task_id` to all tools that require it.
+- USE ONLY the image paths provided in the user input. DO NOT hallucinate or guess file paths.
 - Do not make up file paths. Use the paths returned by the tools.
-- If `ask_human_tool` is called, STOP and wait (the system handles the pause).
-- When finished, ensure the final video path is clearly returned or stated.
-- If a tool fails, analyze the error message. Do not immediately give up. Try a fallback parameter (e.g., lower resolution) or call ask_human_tool if stuck.
-
-**Tools**: {tools}
+- If `ask_human_tool` is called, the pipeline will pause.
+- If a tool fails, analyze the error and retry or ask for guidance.
 """
         
         prompt = ChatPromptTemplate.from_messages([

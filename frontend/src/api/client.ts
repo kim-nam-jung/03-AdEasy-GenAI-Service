@@ -21,6 +21,23 @@ const getHeaders = (isJson: boolean = true) => {
     return headers;
 };
 
+const fetchWithRetry = async (url: string, options: RequestInit, retries: number = 3, backoff: number = 1000): Promise<Response> => {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok && [503, 504].includes(response.status) && retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        return response;
+    } catch (error) {
+        if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw error;
+    }
+};
+
 export const api = {
     createTask: async (files: File[], prompt: string = ""): Promise<TaskResponse> => {
         const formData = new FormData();
@@ -31,7 +48,7 @@ export const api = {
         
         formData.append('prompt', prompt);
 
-        const response = await fetch(`${API_URL}/api/v1/tasks/`, {
+        const response = await fetchWithRetry(`${API_URL}/api/v1/tasks/`, {
             method: 'POST',
             headers: {
                 'X-API-Key': API_KEY,
@@ -48,7 +65,7 @@ export const api = {
     },
     
     getTask: async (taskId: string): Promise<TaskResponse> => {
-        const response = await fetch(`${API_URL}/api/v1/tasks/${taskId}`, {
+        const response = await fetchWithRetry(`${API_URL}/api/v1/tasks/${taskId}`, {
             headers: getHeaders(false),
         });
 

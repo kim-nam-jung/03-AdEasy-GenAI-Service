@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { usePipelineStore } from '../store/pipelineStore';
+import { ReflectionLog } from './ReflectionLog';
 import { ImageUploader } from './ImageUploader';
 import { api } from '../api/client';
 import { useToastStore } from '../store/toastStore';
@@ -7,12 +8,12 @@ import { useToastStore } from '../store/toastStore';
 export const PipelineLab: React.FC = () => {
     // Global Store
     const {
-        taskId, status, progress, logs,
+        taskId, status, progress,
         activeTab, isProcessing,
         visionResult, segmentationResult, rawVideoResult, finalResult,
         showFeedbackModal, feedbackQuestion, feedbackContext,
         
-        setTaskId, setStatus, setProgress, addLog,
+        setTaskId, setStatus, setProgress,
         setVisionResult, setSegmentationResult, setVideoResult, setFinalResult,
         setActiveTab, setIsProcessing,
         openFeedbackModal, closeFeedbackModal, resetPipeline
@@ -31,7 +32,6 @@ export const PipelineLab: React.FC = () => {
         if (!taskId) return;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Ensure we don't duplicate slashes if env var has/hasn't one
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
         const wsBase = apiUrl.replace(/^http/, protocol === 'wss:' ? 'wss' : 'ws'); 
         const wsUrl = `${wsBase}/ws/${taskId}`;
@@ -39,82 +39,109 @@ export const PipelineLab: React.FC = () => {
         console.log(`Connecting to WS: ${wsUrl}`);
         const ws = new WebSocket(wsUrl);
         
-        ws.onopen = () => addLog(`[System] Connected to task stream: ${taskId}`);
+        let nextSeqNum = 1;
+        const messageBuffer = new Map<number, any>();
+
+        const processMessage = (msgData: any) => {
+            switch (msgData.type) {
+                case 'log':
+                    console.log(`[${msgData.level}] ${msgData.message}`);
+                    break;
+                case 'progress':
+                    updateTaskStatus({ 
+                        progress: msgData.value, 
+                        status: msgData.status || status 
+                    });
+                    break;
+                case 'status':
+                    console.log(`[Status] Moved to ${msgData.status}`);
+                    handleStatusUpdate(msgData);
+                    break;
+                case 'human_input_request':
+                    openFeedbackModal(msgData.question || "Guidance needed", msgData.context || "");
+                    break;
+                case 'human_input_received':
+                    closeFeedbackModal();
+                    console.log("[Human] Feedback received, resuming...");
+                    break;
+                case 'error':
+                     console.log(`[Error] ${msgData.message}`);
+                     setIsProcessing(false);
+                     addToast('error', msgData.message);
+                     break;
+            }
+        };
+
+        const drainBuffer = () => {
+            while (messageBuffer.has(nextSeqNum)) {
+                processMessage(messageBuffer.get(nextSeqNum));
+                messageBuffer.delete(nextSeqNum);
+                nextSeqNum++;
+            }
+        };
+        
+        ws.onopen = () => console.log(`[System] Connected to task stream: ${taskId}`);
         
         ws.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data);
+                const envelope = JSON.parse(event.data);
                 
-                switch (data.type) {
-                    case 'log':
-                        addLog(`[${data.level}] ${data.message}`);
-                        break;
-                    case 'progress':
-                        setProgress(data.value);
-                        if (data.status) setStatus(data.status);
-                        break;
-                    case 'status':
-                        setStatus(data.status);
-                        addLog(`[Status] Moved to ${data.status}`);
-                        handleStatusUpdate(data);
-                        break;
-                    case 'human_input_request':
-                        openFeedbackModal(data.question || "Guidance needed", data.context || "");
-                        break;
-                    case 'human_input_received':
-                        closeFeedbackModal();
-                        addLog("[Human] Feedback received, resuming...");
-                        break;
-                    case 'error':
-                         addLog(`[Error] ${data.message}`);
-                         setIsProcessing(false);
-                         break;
+                if (envelope.type === 'ping') return;
+
+                if (envelope.seq === undefined) {
+                    processMessage(envelope);
+                    return;
                 }
+
+                messageBuffer.set(envelope.seq, envelope.data);
+                drainBuffer();
             } catch (e) {
                 console.error("WS Parse Error", e);
             }
         };
 
-        ws.onclose = () => addLog("[System] WebSocket Disconnected");
+        ws.onclose = () => console.log("[System] WebSocket Disconnected");
         ws.onerror = (e) => {
             console.error("WS Error", e);
-            addLog("[Error] WebSocket connection failed");
+            addToast('error', "WebSocket connection failed");
         };
 
         return () => ws.close();
-    }, [taskId]);
+    }, [taskId, status, updateTaskStatus, openFeedbackModal, closeFeedbackModal, setIsProcessing, addToast]);
 
     // Parse status updates to populate results
     const handleStatusUpdate = (data: any) => {
          if (!data.data) return;
          
+         const updates: any = { status: data.status };
+
          if (data.status === 'vision_completed') {
-             setVisionResult(data.data);
-             setActiveTab('vision');
+             updates.visionResult = data.data;
+             updates.activeTab = 'vision';
          } else if (data.status === 'step1_completed') {
-             setSegmentationResult(data.data);
-             setActiveTab('segmentation');
+             updates.segmentationResult = data.data;
+             updates.activeTab = 'segmentation';
          } else if (data.status === 'step2_completed') {
-             setVideoResult(data.data);
-             setActiveTab('video');
+             updates.rawVideoResult = data.data;
+             updates.activeTab = 'video';
          } else if (data.status === 'completed') {
-             setFinalResult(data.data);
-             setIsProcessing(false);
-             addLog("[System] Pipeline Success!");
+             updates.finalResult = data.data;
+             updates.isProcessing = false;
+             updates.activeTab = 'result';
              addToast('success', "Pipeline Completed Successfully!");
-             setActiveTab('result'); // Optional: switch to result tab
          } else if (data.status === 'failed') {
+             updates.isProcessing = false;
              addToast('error', "Pipeline Failed");
-             setIsProcessing(false);
          }
+
+         updateTaskStatus(updates);
     };
 
     const handleUpload = async () => {
         if (selectedFiles.length === 0) return addToast('warning', "Please select an image first.");
         
         resetPipeline();
-        setIsProcessing(true);
-        setActiveTab("logs"); // Switch to logs initially
+        updateTaskStatus({ isProcessing: true, activeTab: "logs" });
         
         const formData = new FormData();
         selectedFiles.forEach((file) => formData.append("files", file));
@@ -123,19 +150,24 @@ export const PipelineLab: React.FC = () => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tasks/`, {
                 method: "POST",
+                headers: {
+                    "X-API-Key": "adeasy-secret-key"
+                },
                 body: formData
             });
             
-            if (!res.ok) throw new Error("Upload failed");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(typeof errData.detail === 'string' ? errData.detail : "Check console for detail");
+            }
             
             const data = await res.json();
             setTaskId(data.task_id);
-            addLog(`[System] Task Initialized: ${data.task_id}`);
+            console.log(`[System] Task Initialized: ${data.task_id}`);
             
         } catch (err: any) {
             console.error(err);
-            addLog(`[Error] Upload Failed: ${err.message}`);
-            setIsProcessing(false);
+            updateTaskStatus({ isProcessing: false });
             addToast('error', "Failed to start task: " + err.message);
         }
     };
@@ -146,14 +178,18 @@ export const PipelineLab: React.FC = () => {
         try {
             const formData = new FormData();
             formData.append("feedback", feedbackInput);
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tasks/${taskId}/feedback`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tasks/${taskId}/feedback`, {
                 method: "POST",
+                headers: {
+                    "X-API-Key": "adeasy-secret-key"
+                },
                 body: formData
             });
+
+            if (!res.ok) throw new Error("Feedback submission failed");
             
             setFeedbackInput("");
             closeFeedbackModal();
-            addLog("[System] Feedback submitted.");
             addToast('success', "Feedback submitted");
         } catch (err) {
             addToast('error', "Failed to submit feedback");
@@ -164,7 +200,7 @@ export const PipelineLab: React.FC = () => {
     const handleCleanup = async () => {
         try {
             await api.debugCleanup();
-            addLog("[System] VRAM Cleared manually.");
+            console.log("[System] VRAM Cleared manually.");
             addToast('success', "VRAM Cleared");
         } catch (e: any) {
              addToast('error', `Cleanup failed: ${e.message}`);
@@ -278,10 +314,8 @@ export const PipelineLab: React.FC = () => {
                     )}
 
                     {activeTab === 'logs' && (
-                         <div className="bg-zinc-900 text-zinc-300 p-4 rounded-xl font-mono text-xs h-full overflow-y-auto">
-                            {logs.length === 0 ? <p className="text-zinc-600">No logs yet...</p> : logs.map((log, i) => (
-                                <div key={i} className="mb-1 border-b border-zinc-800 pb-1 last:border-0">{log}</div>
-                            ))}
+                         <div className="bg-white rounded-xl border border-zinc-200 p-4 h-full overflow-hidden flex flex-col">
+                             <ReflectionLog taskId={taskId || ''} />
                          </div>
                     )}
                     

@@ -22,10 +22,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, 
       return;
     }
 
+    // Revoke old previews to prevent memory leaks
+    previews.forEach(url => URL.revokeObjectURL(url));
+
     const newPreviews = files.map(file => URL.createObjectURL(file));
     setPreviews(newPreviews);
     onImagesSelected(files);
   };
+
+  // Ensure previews are cleaned up if component unmounts
+  React.useEffect(() => {
+    return () => {
+      previews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previews]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();

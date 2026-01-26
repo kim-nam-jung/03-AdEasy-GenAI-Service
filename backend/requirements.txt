@@ -27,12 +27,14 @@ ultralytics>=8.0.0
 torch>=2.1.0
 torchvision>=0.16.0
 torchaudio>=2.1.0
-diffusers>=0.25.0
-transformers>=4.36.0
-accelerate>=0.25.0
-optimum>=1.16.0
-bitsandbytes>=0.41.0
-huggingface-hub>=0.20.0
+diffusers>=0.32.1
+protobuf
+sentencepiece
+transformers
+accelerate
+optimum
+bitsandbytes
+huggingface-hub
 
 # Testing
 pytest>=7.0.0
@@ -40,6 +42,8 @@ httpx>=0.23.0
 
 # Agentic (LangGraph)
 langgraph>=0.1.0
-langchain>=0.2.0
-langchain-community>=0.2.0
-langchain-openai>=0.1.0
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-openai==0.1.25
+langchain-core==0.2.43
+git+https://github.com/facebookresearch/segment-anything-2.git

@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from common.config import settings, Config
+from common.paths import TaskPaths
 from common.logger import TaskLogger
 from pipeline.vram_manager import VRAMManager
 from pipeline.step3_postprocess import Step3Postprocess
@@ -18,11 +19,22 @@ def encode_image(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
+from common.redis_manager import RedisManager
+
+def _get_tool_dependencies(task_id: str):
+    """Helper to bootstrap common tool dependencies consistently."""
+    config = Config.load()
+    task_paths = TaskPaths.from_repo(task_id)
+    task_logger = TaskLogger(task_id, task_paths.run_log)
+    vram_mgr = VRAMManager(logger=task_logger, cfg=config)
+    return config, task_paths, task_logger, vram_mgr
+
 @tool
-def vision_parsing_tool(image_path: str) -> str:
+def vision_parsing_tool(task_id: str, image_path: str) -> str:
     """
     Analyze the input image using GPT-4o Vision to extract product details and suggest pipeline parameters.
     Args:
+        task_id: Unique task identifier for status reporting.
         image_path: Path to the input image file.
     Returns:
         JSON string containing product_type, description, material, segmentation_hint, and suggested_video_prompt.
@@ -35,8 +47,8 @@ def vision_parsing_tool(image_path: str) -> str:
     try:
         base64_image = encode_image(image_path)
         
-        # Use GPT-4o for vision
-        llm = ChatOpenAI(model="gpt-4o", max_tokens=1000)
+        # Use GPT-4o for vision with timeout
+        llm = ChatOpenAI(model="gpt-4o", max_tokens=1000, request_timeout=60)
         
         prompt = """
         You are an expert product analyst for an ad-tech video generation pipeline.
@@ -59,20 +71,33 @@ def vision_parsing_tool(image_path: str) -> str:
                 },
             ]
         )
-        
         response = llm.invoke([message])
         content = response.content.strip()
         
-        # Basic cleanup if LLM adds markdown blocks
-        if content.startswith("```json"):
-            content = content.replace("```json", "").replace("```", "").strip()
-        elif content.startswith("```"):
-            content = content.replace("```", "").strip()
+        # Robust JSON extraction
+        json_str = content
+        if "```json" in content:
+            json_str = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            json_str = content.split("```")[1].split("```")[0].strip()
             
+        result = json.loads(json_str)
+        content = json.dumps(result) # Canonical JSON string
+        
+        # Publish status for UI sync
+        redis_mgr = RedisManager.from_env()
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="vision_completed",
+            message="Vision analysis finished",
+            extra={"result": result}
+        )
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "vision_completed", "data": result})
+
         return content
 
     except Exception as e:
-        logger.error(f"[Tool] vision_parsing_tool failed: {e}")
+        logger.error(f"[Tool] vision_parsing_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
 
 from pipeline.step1_segmentation import Step1Segmentation
@@ -97,13 +122,7 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
     """
     logger.info(f"[Tool] Executing segmentation_tool for task {task_id}")
     try:
-        # Bootstrap dependencies
-        config = Config.load()
-        # Note: We create a temporary logger/vram_mgr for this tool call
-        # In a persistent agent, these would be injected or shared
-        task_logger = TaskLogger(task_id)
-        vram_mgr = VRAMManager(logger=task_logger, cfg=config)
-        
+        config, _, _, vram_mgr = _get_tool_dependencies(task_id)
         executor = Step1Segmentation(vram_mgr)
         
         result = executor.execute(
@@ -112,9 +131,19 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
             config={"segmentation": {"num_layers": num_layers, "resolution": resolution}}
         )
         
+        # Publish status for UI sync
+        redis_mgr = RedisManager.from_env()
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="step1_completed",
+            message="Segmentation finished",
+            extra={"result": result}
+        )
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step1_completed", "data": result})
+        
         return json.dumps(result)
     except Exception as e:
-        logger.error(f"[Tool] segmentation_tool failed: {e}")
+        logger.error(f"[Tool] segmentation_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
 
 @tool
@@ -132,10 +161,7 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
     """
     logger.info(f"[Tool] Executing video_generation_tool for task {task_id}")
     try:
-        config = Config.load()
-        task_logger = TaskLogger(task_id)
-        vram_mgr = VRAMManager(logger=task_logger, cfg=config)
-        
+        _, _, _, vram_mgr = _get_tool_dependencies(task_id)
         executor = Step2VideoGeneration(vram_mgr)
         
         result = executor.execute(
@@ -144,10 +170,20 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
             user_prompt=prompt,
             config={"video_generation": {"num_frames": num_frames}}
         )
+
+        # Publish status for UI sync
+        redis_mgr = RedisManager.from_env()
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="step2_completed",
+            message="Video generation finished",
+            extra={"result": result}
+        )
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step2_completed", "data": result})
         
         return json.dumps(result)
     except Exception as e:
-        logger.error(f"[Tool] video_generation_tool failed: {e}")
+        logger.error(f"[Tool] video_generation_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
 
 @tool
@@ -165,10 +201,7 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
     """
     logger.info(f"[Tool] Executing postprocess_tool for task {task_id}")
     try:
-        config = Config.load()
-        task_logger = TaskLogger(task_id)
-        vram_mgr = VRAMManager(logger=task_logger, cfg=config)
-        
+        config, _, _, vram_mgr = _get_tool_dependencies(task_id)
         executor = Step3Postprocess(vram_mgr)
         
         # Override config based on tool inputs
@@ -183,10 +216,20 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
             raw_video_path=raw_video_path,
             config=config_dict
         )
+
+        # Publish status for UI sync (FINAL)
+        redis_mgr = RedisManager.from_env()
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="completed",
+            message="Pipeline completed successfully",
+            extra={"result": result}
+        )
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "completed", "data": result})
         
         return json.dumps(result)
     except Exception as e:
-        logger.error(f"[Tool] postprocess_tool failed: {e}")
+        logger.error(f"[Tool] postprocess_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
 
 
@@ -203,7 +246,8 @@ def reflection_tool(step_name: str, result_summary: str, user_prompt: Optional[s
     """
     logger.info(f"[Tool] Executing reflection_tool for {step_name}")
     
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    # Use GPT-4o with timeout
+    llm = ChatOpenAI(model="gpt-4o", temperature=0, request_timeout=60)
     
     prompt = f"""
     You are a Supervisor Agent overseeing a video generation pipeline.
@@ -255,6 +299,6 @@ def ask_human_tool(task_id: str, question: str, context: Optional[str] = None) -
         
         return f"REQUEST_SENT: {question}"
     except Exception as e:
-        logger.error(f"[Tool] ask_human_tool failed: {e}")
+        logger.error(f"[Tool] ask_human_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
 

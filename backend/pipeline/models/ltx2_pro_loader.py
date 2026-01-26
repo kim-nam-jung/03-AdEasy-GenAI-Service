@@ -9,8 +9,7 @@ the LTX-2 Pro version when available.
 """
 import torch
 from PIL import Image
-from diffusers import LTXConditionPipeline
-from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+from diffusers import DiffusionPipeline
 from diffusers.utils import export_to_video, load_video
 from typing import Optional
 import logging
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 class LTX2ProLoader:
     """Loader for LTX-Video model."""
     
-    def __init__(self, model_id: str = "Lightricks/LTX-Video-0.9.8-dev", device: str = "cuda", use_fp8: bool = False):
+    def __init__(self, model_id: str = "Lightricks/LTX-Video", device: str = "cuda", use_fp8: bool = False):
         """
         Initialize LTX-Video loader.
         
@@ -50,9 +49,10 @@ class LTX2ProLoader:
             # FP8 support to be added when available
             torch_dtype = torch.bfloat16
             
-            self.pipeline = LTXConditionPipeline.from_pretrained(
+            self.pipeline = DiffusionPipeline.from_pretrained(
                 self.model_id,
-                torch_dtype=torch_dtype
+                torch_dtype=torch_dtype,
+                trust_remote_code=True
             )
             
             self.pipeline.to(self.device)
@@ -122,12 +122,9 @@ class LTX2ProLoader:
         logger.info(f"Generating video: {num_frames} frames @ {width}x{height}")
         
         try:
-            # Load input image and prepare as condition
-            image = Image.open(image_path).convert("RGB")
-            
-            # Convert image to video format for conditioning
-            video = load_video(export_to_video([image]))
-            condition = LTXVideoCondition(video=video, frame_index=0)
+            # Load input image
+            with Image.open(image_path) as img:
+                image = img.convert("RGB")
             
             # Set random seed
             generator = None
@@ -135,8 +132,9 @@ class LTX2ProLoader:
                 generator = torch.Generator(device=self.device).manual_seed(seed)
                 
             # Generate video
+            # Assumes standard I2V pipeline signature for LTX-Video
             output = self.pipeline(
-                conditions=[condition],
+                image=image,
                 prompt=prompt,
                 negative_prompt=negative_prompt,
                 width=width,

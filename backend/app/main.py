@@ -1,15 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api import api_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error for {request.url}: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 # CORS Configuration
 if settings.BACKEND_CORS_ORIGINS:

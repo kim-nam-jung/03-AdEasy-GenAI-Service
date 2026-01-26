@@ -27,6 +27,17 @@ async def create_task(
     if len(files) > 4:
         raise HTTPException(status_code=400, detail="Maximum 4 images allowed")
 
+    # Disk space check
+    data_dir = Path("data") # Adjust if data dir is different
+    data_dir.mkdir(exist_ok=True)
+    usage = shutil.disk_usage(data_dir)
+    free_gb = usage.free / (1024**3)
+    if free_gb < 5.0:
+        raise HTTPException(
+            status_code=507, 
+            detail=f"Insufficient disk space on server. (Free: {free_gb:.1f}GB, Required: 5GB)"
+        )
+
     task_id = str(uuid.uuid4())
     
     # Init paths

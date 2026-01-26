@@ -64,6 +64,17 @@ interface PipelineState {
   openFeedbackModal: (question: string, context: string) => void;
   closeFeedbackModal: () => void;
   
+  updateTaskStatus: (updates: {
+    status?: string;
+    progress?: number;
+    visionResult?: VisionAnalysis;
+    segmentationResult?: SegmentationResult;
+    rawVideoResult?: VideoResult;
+    finalResult?: FinalResult;
+    isProcessing?: boolean;
+    activeTab?: string;
+  }) => void;
+  
   resetPipeline: () => void;
 }
 
@@ -105,6 +116,8 @@ export const usePipelineStore = create<PipelineState>((set) => ({
     feedbackContext: context 
   }),
   closeFeedbackModal: () => set({ showFeedbackModal: false }),
+  
+  updateTaskStatus: (updates) => set((state) => ({ ...state, ...updates })),
   
   resetPipeline: () => set({
     taskId: null,

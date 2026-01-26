@@ -121,7 +121,7 @@ class VRAMManager:
     
     def cleanup(self):
         """
-        Clean up VRAM
+        Clean up VRAM and verify results.
         """
         if self.logger:
             self.logger.info("   [VRAM] Cleaning up...")
@@ -138,6 +138,12 @@ class VRAMManager:
         
         if self.logger:
             self.logger.info(f"   [VRAM] After cleanup: {info['free_gb']:.2f}GB free")
+            
+            # Warning if still low
+            if info['total_gb'] > 0:
+                usage_pct = (info['allocated_gb'] / info['total_gb']) * 100
+                if usage_pct > 90:
+                    self.logger.warning(f"   [VRAM] HIGH RESIDENCY DETECTED: {usage_pct:.1f}% still in use after cleanup.")
     
     def log_status(self, step_name: str = ""):
         """
