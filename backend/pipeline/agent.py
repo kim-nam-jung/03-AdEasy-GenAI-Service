@@ -1,8 +1,7 @@
 import logging
 from typing import List, Dict, Any
 from langchain_openai import ChatOpenAI
-from langchain_classic.agents.agent import AgentExecutor
-from langchain_classic.agents.openai_tools.base import create_openai_tools_agent
+from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from common.config import Config
 from common.redis_manager import RedisManager
