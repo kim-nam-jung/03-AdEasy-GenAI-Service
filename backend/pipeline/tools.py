@@ -373,16 +373,17 @@ def ask_human_tool(task_id: str, question: str, context: Optional[str] = None) -
 @tool
 def planning_tool(task_id: str, plan_steps: List[str], rationale: str) -> str:
     """
-    Formulate a step-by-step execution plan for the video generation task.
-    This should be used after vision analysis to define the pipeline strategy.
+    Formulate a step-by-step execution plan and wait for user confirmation.
+    This MUST be used after vision analysis to define the pipeline strategy and get user approval.
     Args:
         task_id: Unique task identifier.
-        plan_steps: A list of descriptive steps the agent will take (e.g., ["Segment the watch face", "Generate rotating motion", "Upscale to 4K"]).
+        plan_steps: A list of descriptive steps the agent will take.
         rationale: Brief explanation of why this plan was chosen.
     Returns:
-        JSON string confirming the plan has been recorded.
+        The user's feedback or 'Approved' string.
     """
-    logger.info(f"[Tool] Executing planning_tool for task {task_id}")
+    logger.info(f"[Tool] Proposing plan for task {task_id} and waiting for approval")
+    import time
     try:
         from common.redis_manager import RedisManager
         redis_mgr = RedisManager.from_env()
@@ -392,22 +393,48 @@ def planning_tool(task_id: str, plan_steps: List[str], rationale: str) -> str:
             "timestamp": datetime.now().isoformat()
         }
         
-        # Publish to Redis so UI can render a "Plan" card
+        # 1. Publish to Redis so UI can render the plan with an "Approve" button
         redis_mgr.publish(f"task:{task_id}", {
             "type": "status", 
-            "status": "planning_completed", 
+            "status": "planning_proposed", 
             "data": plan_data
         })
         
-        # Also set status in Redis for persistence
+        # 2. Record status for persistence
         redis_mgr.set_status(
             task_id=task_id,
-            status="planning_completed",
-            message="Strategic plan formulated",
-            extra={"result": plan_data}
+            status="planning_proposed",
+            message="Plan proposed, waiting for user approval",
+            extra={"plan": plan_data}
         )
         
-        return json.dumps({"status": "plan_recorded", "plan": plan_data})
+        # 3. BLOCKING WAIT for human feedback
+        # The frontend will hit POST /tasks/{task_id}/feedback
+        # which sets the status to 'feedback_received'
+        
+        logger.info(f"[Tool] Plan sent. Entering wait loop for task {task_id}...")
+        
+        start_time = time.time()
+        timeout = 300 # 5 minutes
+        
+        while time.time() - start_time < timeout:
+            status_data = redis_mgr.get_status(task_id)
+            if status_data and status_data.get("status") == "feedback_received":
+                feedback = status_data.get("extra", {}).get("user_feedback", "Approved")
+                logger.info(f"[Tool] Feedback received: {feedback}")
+                
+                # Signal resume in UI
+                redis_mgr.publish(f"task:{task_id}", {
+                    "type": "human_input_received",
+                    "feedback": feedback
+                })
+                
+                return f"User Response: {feedback}"
+            
+            time.sleep(2) # Poll Redis every 2 seconds
+            
+        return "ERROR: User did not respond to the plan within the timeout."
+
     except Exception as e:
         logger.error(f"[Tool] planning_tool failed: {e}")
         return json.dumps({"error": str(e)})
