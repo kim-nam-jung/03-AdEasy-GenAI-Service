@@ -25,13 +25,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # CORS Configuration
-# CORS Configuration - Force Allow All for Debugging
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Explicitly allow all for debugging/cloud access
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 from app.api.routes import ws

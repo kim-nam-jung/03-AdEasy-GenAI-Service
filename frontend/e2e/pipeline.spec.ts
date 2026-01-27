@@ -126,9 +126,29 @@ test.describe('Agent Pipeline', () => {
 
         // Wait for planning result
         await expect(page.locator('text=Analyze visuals')).toBeVisible({ timeout: 5000 });
+        
+        // --- NEW: Handle Human-in-the-Loop Approval in Test ---
+        const approveBtn = page.locator('button:has-text("Approve & Start")');
+        await expect(approveBtn).toBeVisible();
+        
+        // Mock feedback API
+        await page.route('**/api/v1/tasks/**/feedback', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: "received" }) });
+        });
 
-        // Wait for status to show completed
-        await expect(page.locator('text=completed')).toBeVisible({ timeout: 10000 });
-        await expect(page.locator('text=Pipeline Completed Successfully!')).toBeVisible({ timeout: 5000 });
+        await approveBtn.click();
+
+        // Emit final completion event after approval
+        await page.evaluate(() => {
+            if (window.wsMock) {
+                window.wsMock.dispatchEvent(new MessageEvent('message', { 
+                    data: JSON.stringify({ seq: 3, data: { type: 'status', status: 'completed', data: { video_path: '/outputs/test.mp4', thumbnail_path: '/outputs/thumb.jpg' } } }) 
+                }));
+            }
+        });
+
+        // Wait for final completion indicators
+        await expect(page.locator('text=Final Masterpiece')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('text=Pipeline Completed Successfully!')).toBeVisible();
     });
 });
