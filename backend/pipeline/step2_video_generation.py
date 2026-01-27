@@ -65,13 +65,7 @@ class Step2VideoGeneration:
             self.vram_manager.load_model("ltx2_pro", self.loader)
             
             # Generate video
-            output_dir = TaskPaths.from_repo(task_id).outputs_task_dir / "video"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            raw_video_path = str(output_dir / f"raw_{timestamp}.mp4")
-            
-            self.loader.generate_video(
+            raw_video_path = self.loader.generate_video(
                 image_path=main_product_layer,
                 prompt=user_prompt,
                 num_frames=num_frames,
@@ -82,10 +76,6 @@ class Step2VideoGeneration:
                 guidance_scale=guidance_scale,
                 seed=seed
             )
-            
-            # Note: LTX2ProLoader.generate_video already saves the file
-            # We're assuming it returns/saves to a predictable location
-            # Adjust based on actual implementation
             
             # Unload model
             self.vram_manager.unload_model("ltx2_pro")

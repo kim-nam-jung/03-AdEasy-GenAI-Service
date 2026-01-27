@@ -91,21 +91,38 @@ const LogEntry: React.FC<{ log: IReflectionLog }> = ({ log }) => {
                         <span className="text-[10px] text-zinc-300">{log.timestamp}</span>
                     </div>
                     
-                    {log.type === 'tool_result' ? (
-                        <div>
-                            <button 
-                                onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="text-[11px] underline hover:text-zinc-900 flex items-center gap-1"
-                            >
-                                {isCollapsed ? 'Show tool output' : 'Hide tool output'}
-                            </button>
-                            {!isCollapsed && (
-                                <div className="mt-2 text-[10px] overflow-x-auto whitespace-pre p-2 bg-white/50 rounded border border-zinc-200/50 max-h-40 custom-scrollbar mt-2">
-                                    {log.content}
+                    {log.type === 'tool_result' ? (() => {
+                        let parsed = null;
+                        try {
+                            if (log.content.trim().startsWith('{')) {
+                                parsed = JSON.parse(log.content);
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        if (parsed && parsed.reflection) {
+                            return (
+                                <div className="mt-2 text-[12px] text-zinc-900 leading-relaxed bg-white/40 p-3 rounded-lg border border-zinc-200/50">
+                                    {parsed.reflection}
                                 </div>
-                            )}
-                        </div>
-                    ) : (
+                            );
+                        }
+
+                        return (
+                            <div>
+                                <button 
+                                    onClick={() => setIsCollapsed(!isCollapsed)}
+                                    className="text-[11px] underline hover:text-zinc-900 flex items-center gap-1"
+                                >
+                                    {isCollapsed ? 'Show data' : 'Hide data'}
+                                </button>
+                                {!isCollapsed && (
+                                    <div className="mt-2 text-[10px] overflow-x-auto whitespace-pre p-2 bg-white/50 rounded border border-zinc-200/50 max-h-60 custom-scrollbar mt-2">
+                                        {parsed ? JSON.stringify(parsed, null, 2) : log.content}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })() : (
                         <div className={`whitespace-pre-wrap leading-relaxed ${log.type === 'thought' ? 'text-zinc-700' : 'font-bold'}`}>
                             {log.content}
                         </div>
