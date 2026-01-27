@@ -81,6 +81,7 @@ class AdGenAgent:
 2. `planning_tool`: 분석된 특징을 기반으로 한 **'영상 연출 기획서'** 제출 및 승인 대기. (이때 기술적인 도구 이름은 언급하지 마세요.)
 3. `segmentation_tool`: 제품과 배경의 완벽한 분리.
 4. `reflection_tool`: (필수) 누끼 상태의 완벽성 시각 검수.
+   - 만약 `reflection_tool`이 "Human Intervention Required"를 반환하면, 즉시 `ask_human_tool`을 호출하여 사용자에게 도움을 요청하세요.
 5. `video_generation_tool`: 기획서에 명시된 카메라 연출과 무드를 반영하여 영상 생성.
 6. `reflection_tool`: (필수) 영상의 움직임과 품질 시각 검수.
 7. `postprocess_tool`: 최종 시네마틱 보정.

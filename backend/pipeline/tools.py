@@ -352,9 +352,11 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
            - **무너짐**: 움직일 때 물체가 녹아내리거나 형태가 괴기하게 변하는가?
         
         **결정 및 처방 지침**:
-        - 위 불량이 하나라도 보이면 **무조건 "retry"**를 선택하세요. ("proceed" 금지)
-        - **Retry 시 처방전(config_patch)**을 반드시 내려야 합니다:
-           - 잘림/파먹음 발생 시 -> `{{ "segmentation": {{ "resolution": 1280, "num_layers": 8 }} }}` (해상도/레이어 대폭 상향)
+        - 위 불량이 하나라도 보이면 **"retry"**를 선택하세요.
+        - **단, 주의할 점**: 만약 **이전에도 똑같은 처방(예: 해상도 1280)을 내렸는데도 불구하고** 결과가 여전히 똑같다면, 무의미한 무한 루프를 멈춰야 합니다.
+          -> 이 경우 `decision: "fail"`을 선택하고, reflection에 반드시 **"Human Intervention Required"**라고 적으세요.
+        - **Retry 시 처방전(config_patch)**:
+           - 잘림/파먹음 발생 시 -> `{{ "segmentation": {{ "resolution": 1280, "num_layers": 8 }} }}`
            - 영상 무너짐 발생 시 -> `{{ "video_generation": {{ "num_frames": 128 }} }}`
         
         JSON 형식으로만 응답하세요:
