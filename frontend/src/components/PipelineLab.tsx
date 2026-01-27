@@ -262,111 +262,57 @@ export const PipelineLab: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-zinc-200 mb-6">
-                {['upload', 'logs', 'vision', 'segmentation', 'video', 'result'].map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-5 py-2.5 text-sm font-medium capitalize border-b-2 transition-colors ${
-                            activeTab === tab 
-                            ? 'border-blue-600 text-blue-600' 
-                            : 'border-transparent text-zinc-500 hover:text-zinc-700'
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+                {activeTab === 'upload' && !isProcessing && !taskId && (
+                    <div className="space-y-6 max-w-2xl mx-auto pt-10">
+                         <section className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-xl shadow-zinc-200/50">
+                            <h3 className="text-2xl font-bold text-zinc-900 mb-6">Create New Video</h3>
+                            <div className="space-y-6">
+                                <ImageUploader onImagesSelected={setSelectedFiles} isLoading={isProcessing} />
+                                
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-zinc-500 uppercase tracking-wider ml-1">Motion Prompt</label>
+                                    <textarea
+                                        className="w-full p-4 border border-zinc-200 rounded-2xl h-32 text-[15px] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-zinc-300"
+                                        placeholder="Describe the desired video motion and atmosphere (e.g. 'Cinematic tracking shot, soft lighting, 4k')..."
+                                        value={prompt}
+                                        onChange={(e) => setPrompt(e.target.value)}
+                                    />
+                                </div>
+                                
+                                <button 
+                                    onClick={handleUpload}
+                                    disabled={isProcessing || selectedFiles.length === 0}
+                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold text-lg hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition-all transform active:scale-[0.98]"
+                                >
+                                    {isProcessing ? "Agent Working..." : "Generate Autonomous Video"}
+                                </button>
+                            </div>
+                         </section>
+                    </div>
+                )}
+
+                {(isProcessing || taskId) && (
+                     <div className="bg-white rounded-3xl border border-zinc-200 h-full overflow-hidden flex flex-col shadow-inner">
+                         {isProcessing && (
+                           <div className="px-6 py-3 bg-blue-600 text-white flex items-center justify-between text-xs font-bold uppercase tracking-widest">
+                             <div className="flex items-center gap-3">
+                               <div className="w-2 h-2 rounded-full bg-white animate-ping" />
+                               Autonomous Agent Processing...
+                             </div>
+                             <div className="flex gap-4">
+                               <span>Step: {progress > 66 ? 'Postprocess' : progress > 33 ? 'Video Gen' : 'Segmentation'}</span>
+                               <span>{Math.round(progress)}%</span>
+                             </div>
+                           </div>
+                         )}
+                         <div className="flex-1 overflow-y-auto p-4">
+                            <ReflectionLog taskId={taskId || ''} />
+                         </div>
+                     </div>
+                )}
             </div>
-
-            <div className="flex-1 flex gap-6 overflow-hidden">
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
-                    {activeTab === 'upload' && (
-                        <div className="space-y-6 max-w-2xl">
-                             <section className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4">New Task</h3>
-                                <div className="space-y-4">
-                                    <ImageUploader onImagesSelected={setSelectedFiles} isLoading={isProcessing} />
-                                    
-                                    <div>
-                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Prompt (Optional)</label>
-                                        <textarea
-                                            className="w-full p-3 border border-zinc-200 rounded-lg h-24 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="Describe the desired video motion and atmosphere..."
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                        />
-                                    </div>
-                                    
-                                    <button 
-                                        onClick={handleUpload}
-                                        disabled={isProcessing || selectedFiles.length === 0}
-                                        className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm"
-                                        data-debug-processing={isProcessing.toString()}
-                                        data-debug-files={selectedFiles.length}
-                                    >
-                                        {isProcessing ? "Agent Working..." : "Start Agent Task"}
-                                    </button>
-                                </div>
-                             </section>
-                        </div>
-                    )}
-
-                    {activeTab === 'logs' && (
-                         <div className="bg-white rounded-xl border border-zinc-200 p-4 h-full overflow-hidden flex flex-col">
-                             <ReflectionLog taskId={taskId || ''} />
-                         </div>
-                    )}
-                    
-                    {activeTab === 'vision' && (
-                         <div className="space-y-4">
-                            {visionResult ? (
-                                <pre className="bg-zinc-50 p-4 rounded-xl text-xs font-mono border border-zinc-200 overflow-auto">
-                                    {JSON.stringify(visionResult, null, 2)}
-                                </pre>
-                            ) : <div className="text-zinc-400 text-center py-10">No Vision Analysis data yet.</div>}
-                         </div>
-                    )}
-                    
-                    {activeTab === 'segmentation' && (
-                         <div className="space-y-4">
-                            {segmentationResult ? (
-                                <div className="grid grid-cols-2 gap-4">
-                                     {segmentationResult.segmented_layers?.map((layer: string, idx: number) => (
-                                         <div key={idx} className="border border-zinc-200 p-2 rounded-lg">
-                                             <img src={layer} alt={`Layer ${idx}`} className="w-full h-auto rounded" />
-                                             <p className="text-xs text-center mt-1 text-zinc-500">Layer {idx}</p>
-                                         </div>
-                                     ))}
-                                </div>
-                            ) : <div className="text-zinc-400 text-center py-10">No Segmentation data yet.</div>}
-                         </div>
-                    )}
-
-                    {activeTab === 'video' && (
-                         <div className="space-y-4">
-                            {rawVideoResult ? (
-                                <div className="max-w-xl mx-auto">
-                                     <h4 className="font-semibold mb-2">Raw Video</h4>
-                                     <video controls src={rawVideoResult.raw_video_path} className="w-full rounded-lg shadow-lg" />
-                                </div>
-                            ) : <div className="text-zinc-400 text-center py-10">No Raw Video yet.</div>}
-                         </div>
-                    )}
-                    
-                    {activeTab === 'result' && (
-                         <div className="space-y-4">
-                            {finalResult ? (
-                                <div className="max-w-xl mx-auto text-center">
-                                     <h2 className="text-2xl font-bold text-green-600 mb-4">Final Output</h2>
-                                     <video controls src={finalResult.video_path} poster={finalResult.thumbnail_path} className="w-full rounded-xl shadow-2xl border-4 border-green-100" />
-                                     <p className="mt-4 text-zinc-600 text-sm">Task Completed Successfully</p>
-                                </div>
-                            ) : <div className="text-zinc-400 text-center py-10">No Final Result yet.</div>}
-                         </div>
-                    )}
-                </div>
 
                 {/* Sidebar Status */}
                 <div className="w-72 hidden xl:block bg-zinc-50 rounded-xl border border-zinc-200 p-5">

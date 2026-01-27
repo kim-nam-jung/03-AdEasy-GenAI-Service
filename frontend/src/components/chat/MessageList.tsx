@@ -57,25 +57,112 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
               </div>
             )}
 
-            {log.type === 'tool_result' && (
-              <div className="my-6">
-                <div className="bg-zinc-50/50 border border-zinc-200/60 rounded-2xl overflow-hidden">
-                   <div className="px-4 py-2 border-b border-zinc-100 flex items-center justify-between">
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Reflection Insight</span>
-                      <div className="w-1 h-1 rounded-full bg-green-400" />
+            {log.type === 'tool_result' && (() => {
+               let parsed: any = null;
+               try {
+                 if (log.content.trim().startsWith('{')) {
+                   parsed = JSON.parse(log.content.replace(/```json|```/g, '').trim());
+                 }
+               } catch (e) { /* ignore */ }
+
+               // Handle Final Output
+               if (log.metadata?.is_final && parsed?.video_path) {
+                 return (
+                   <div className="my-10 animate-scale-in">
+                     <div className="bg-white border-2 border-green-500/20 rounded-3xl overflow-hidden shadow-2xl">
+                       <div className="px-6 py-3 bg-green-50 border-b border-green-100 flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <span className="flex h-2 w-2 rounded-full bg-green-500" />
+                           <span className="text-[12px] font-black text-green-700 uppercase tracking-widest">Final Masterpiece</span>
+                         </div>
+                         <span className="text-[10px] text-green-600/60 font-mono">COMPLETE</span>
+                       </div>
+                       <div className="aspect-video relative bg-black">
+                         <video 
+                           controls 
+                           autoPlay
+                           loop
+                           src={parsed.video_path} 
+                           poster={parsed.thumbnail_path} 
+                           className="w-full h-full object-contain" 
+                         />
+                       </div>
+                       <div className="p-4 bg-zinc-50 border-t border-zinc-100 italic text-center">
+                         <p className="text-[13px] text-zinc-500">Pipeline completed successfully. Your video is ready!</p>
+                       </div>
+                     </div>
                    </div>
-                   <div className="p-4">
-                      {log.content.trim().startsWith('{') || log.content.trim().startsWith('```') ? (
-                        <pre className="bg-zinc-100 border border-zinc-200 rounded-lg p-3 text-[12px] font-mono text-zinc-600 overflow-x-auto">
-                          {log.content.replace(/```json|```/g, '').trim()}
-                        </pre>
-                      ) : (
-                        <p className="text-[13px] text-zinc-500 leading-relaxed font-medium whitespace-pre-wrap">{log.content}</p>
-                      )}
+                 );
+               }
+
+               // Handle Reflection (Clean Sentence)
+               if (parsed && parsed.reflection) {
+                 return (
+                   <div className="my-8 flex justify-start">
+                     <div className="bg-blue-50/50 border border-blue-100 rounded-2xl px-6 py-4 max-w-[90%] shadow-sm">
+                       <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Supervisor Reflection</span>
+                       </div>
+                       <p className="text-zinc-700 text-[15px] leading-relaxed italic">
+                         {parsed.reflection}
+                       </p>
+                       {parsed.decision === 'retry' && (
+                         <div className="mt-3 flex items-center gap-2 text-[12px] text-amber-600 font-bold">
+                           <span className="animate-spin text-lg">↺</span> Retrying with adjusted parameters...
+                         </div>
+                       )}
+                     </div>
                    </div>
-                </div>
-              </div>
-            )}
+                 );
+               }
+
+               // Handle Intermediate data (Segmentation etc)
+               if (parsed && !parsed.error) {
+                 const isSegmentation = parsed.segmented_layers && Array.isArray(parsed.segmented_layers);
+                 
+                 return (
+                   <div className="my-6">
+                     <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+                       <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
+                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                           {log.metadata?.status?.replace(/_/g, ' ') || 'Tool Insight'}
+                         </span>
+                         <div className="w-1 h-1 rounded-full bg-blue-400" />
+                       </div>
+                       <div className="p-4">
+                         {isSegmentation ? (
+                           <div className="grid grid-cols-3 gap-2">
+                             {parsed.segmented_layers.map((layer: string, idx: number) => (
+                               <img key={idx} src={layer} className="w-full aspect-square object-cover rounded-lg border border-zinc-100" alt="layer" />
+                             ))}
+                           </div>
+                         ) : (
+                           <div className="space-y-2">
+                             {Object.entries(parsed).map(([key, value]: [string, any]) => {
+                               if (typeof value === 'object' || key.includes('path')) return null;
+                               return (
+                                 <div key={key} className="flex items-baseline gap-2">
+                                   <span className="text-[10px] font-bold text-zinc-400 uppercase shrink-0 w-24">{key.replace(/_/g, ' ')}</span>
+                                   <p className="text-[13px] text-zinc-600">{String(value)}</p>
+                                 </div>
+                               )
+                             })}
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 );
+               }
+
+               return (
+                 <div className="my-6 flex justify-start">
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 max-w-[80%]">
+                       <p className="text-[13px] text-zinc-500 leading-relaxed font-medium">{log.content}</p>
+                    </div>
+                 </div>
+               );
+            })()}
           </div>
         ))}
       </div>

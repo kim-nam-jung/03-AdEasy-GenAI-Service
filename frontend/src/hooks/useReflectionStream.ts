@@ -92,6 +92,18 @@ export function useReflectionStream(taskId: string | null) {
                     isComplete: true,
                     timestamp: new Date().toLocaleTimeString()
                 }]);
+            } else if (msgData.type === 'status') {
+                // Treat status updates with data as tool results so they appear in chat
+                if (msgData.data) {
+                    setLogs(prev => [...prev, {
+                        id: ++logIdRef.current,
+                        type: 'tool_result',
+                        content: typeof msgData.data === 'string' ? msgData.data : JSON.stringify(msgData.data),
+                        isComplete: true,
+                        timestamp: new Date().toLocaleTimeString(),
+                        metadata: { status: msgData.status, is_final: msgData.status === 'completed' }
+                    }]);
+                }
             } else if (msgData.type === 'log') {
                 setLogs(prev => [...prev, {
                     id: ++logIdRef.current,
