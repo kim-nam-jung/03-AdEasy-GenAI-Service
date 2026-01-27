@@ -166,7 +166,8 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
         # Convert absolute paths to web-accessible paths for frontend
         converted_result = {
             "segmented_layers": [task_paths.to_web_path(p) for p in result.get("segmented_layers", [])],
-            "main_product_layer": task_paths.to_web_path(result.get("main_product_layer", ""))
+            "main_product_layer": task_paths.to_web_path(result.get("main_product_layer", "")),
+            "abs_main_product_layer": str(result.get("main_product_layer", "")) # For agent's vision tool
         }
         
         # Publish status for UI sync
@@ -191,7 +192,7 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
     Generates a video from the main product image and prompt.
     Args:
         task_id: Unique task identifier.
-        main_product_layer: Path to the segmented product image.
+        main_product_layer: Path to the segmented product image (Web path or Abs path).
         prompt: Description of the video to generate.
         num_frames: Number of frames to generate (default: 96).
     Returns:
@@ -199,7 +200,11 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
     """
     logger.info(f"[Tool] Executing video_generation_tool for task {task_id}")
     try:
-        _, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        # Resolve path if web path is passed
+        _, task_paths, _, vram_mgr = _get_tool_dependencies(task_id)
+        if "/outputs/" in main_product_layer:
+             main_product_layer = str(task_paths.outputs_task_dir / os.path.basename(main_product_layer))
+
         vram_mgr.unload_all() # Clear Step 1 models
         vram_mgr.cleanup()
         executor = Step2VideoGeneration(vram_mgr)
@@ -212,8 +217,10 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
         )
 
         # Convert paths to web paths
-        _, task_paths, _, _ = _get_tool_dependencies(task_id)
-        result["raw_video_path"] = task_paths.to_web_path(result["raw_video_path"])
+        converted_result = {
+            "raw_video_path": task_paths.to_web_path(result["raw_video_path"]),
+            "abs_raw_video_path": str(result["raw_video_path"]) # For agent's vision tool
+        }
 
         # Publish status for UI sync
         redis_mgr = RedisManager.from_env()
@@ -221,11 +228,11 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
             task_id=task_id,
             status="step2_completed",
             message="Video generation finished",
-            extra={"result": result}
+            extra={"result": converted_result}
         )
-        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step2_completed", "data": result})
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step2_completed", "data": converted_result})
         
-        return json.dumps(result)
+        return json.dumps(converted_result)
     except Exception as e:
         logger.error(f"[Tool] video_generation_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
@@ -237,7 +244,7 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
     Enhances the raw video with frame interpolation and upscaling.
     Args:
         task_id: Unique task identifier.
-        raw_video_path: Path to the raw generated video.
+        raw_video_path: Path to the raw generated video (Web path or Abs path).
         rife_enabled: Whether to enable RIFE frame interpolation.
         cugan_enabled: Whether to enable Real-CUGAN upscaling.
     Returns:
@@ -245,7 +252,12 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
     """
     logger.info(f"[Tool] Executing postprocess_tool for task {task_id}")
     try:
-        config, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        config, task_paths, _, vram_mgr = _get_tool_dependencies(task_id)
+        
+        # Resolve path if web path is passed
+        if "/outputs/" in raw_video_path:
+             raw_video_path = str(task_paths.outputs_task_dir / os.path.basename(raw_video_path))
+
         vram_mgr.unload_all() # Clear Step 2 models
         vram_mgr.cleanup()
         executor = Step3Postprocess(vram_mgr)
@@ -264,9 +276,11 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
         )
 
         # Convert paths to web paths
-        _, task_paths, _, _ = _get_tool_dependencies(task_id)
-        result["video_path"] = task_paths.to_web_path(result["video_path"])
-        result["thumbnail_path"] = task_paths.to_web_path(result["thumbnail_path"])
+        converted_result = {
+            "video_path": task_paths.to_web_path(result["video_path"]),
+            "thumbnail_path": task_paths.to_web_path(result["thumbnail_path"]),
+            "abs_video_path": str(result["video_path"])
+        }
 
         # Publish status for UI sync (FINAL)
         redis_mgr = RedisManager.from_env()
@@ -274,11 +288,11 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
             task_id=task_id,
             status="completed",
             message="Pipeline completed successfully",
-            extra={"result": result}
+            extra={"result": converted_result}
         )
-        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "completed", "data": result})
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "completed", "data": converted_result})
         
-        return json.dumps(result)
+        return json.dumps(converted_result)
     except Exception as e:
         logger.error(f"[Tool] postprocess_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
