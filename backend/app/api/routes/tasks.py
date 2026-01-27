@@ -9,9 +9,9 @@ import uuid
 import shutil
 from pathlib import Path
 
-router = APIRouter(dependencies=[Depends(verify_api_key)])
+router = APIRouter(dependencies=[Depends(verify_api_key)], redirect_slashes=False)
 
-@router.post("/", response_model=TaskResponse)
+@router.post("", response_model=TaskResponse)
 async def create_task(
     files: List[UploadFile] = File(...),
     prompt: Optional[str] = Form("")
