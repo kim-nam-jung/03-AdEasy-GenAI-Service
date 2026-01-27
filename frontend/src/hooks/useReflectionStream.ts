@@ -18,7 +18,7 @@ export function useReflectionStream(taskId: string | null) {
     const logIdRef = useRef<number>(0);
     const currentThoughtRef = useRef<string>("");
 
-    const handleMessage = useCallback((msgData: any) => {
+    const handleMessage = useCallback((msgData: TaskEvent) => {
         // Handle token streaming
         if (msgData.type === 'token') {
             currentThoughtRef.current += msgData.content;

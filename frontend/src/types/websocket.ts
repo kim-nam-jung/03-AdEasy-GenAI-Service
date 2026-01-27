@@ -27,4 +27,10 @@ export type TaskEvent =
     | { type: 'human_input_request'; question?: string; context?: string }
     | { type: 'human_input_received'; feedback?: string }
     | { type: 'error'; message: string }
-    | { type: 'ping'; timestamp: number };
+    | { type: 'ping'; timestamp: number }
+    // Reflection Stream Types
+    | { type: 'token'; content: string }
+    | { type: 'thought'; message: string }
+    | { type: 'tool_call'; tool: string; tool_input?: any; log?: string }
+    | { type: 'tool_result'; output: string }
+    | { type: 'end' };
