@@ -1,3 +1,4 @@
+import React, { useMemo, useCallback } from 'react';
 import { API_URL } from '../../api/config';
 import { ReflectionLog as ReflectionLogType } from '../../hooks/useReflectionStream';
 
@@ -7,17 +8,17 @@ interface MessageListProps {
   userImages: string[];
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, userImages }) => {
-  const ensureUrl = (path: string) => {
+export const MessageList: React.FC<MessageListProps> = React.memo(({ logs, userPrompt, userImages }) => {
+  const ensureUrl = useCallback((path: string) => {
     if (!path) return '';
     if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return path;
     const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
     const p = path.startsWith('/') ? path : `/${path}`;
     return `${base}${p}`;
-  };
+  }, []);
 
   // Helper to hide purely technical JSON content from thoughts
-  const formatContent = (content: string) => {
+  const formatContent = useCallback((content: string) => {
     const trimmed = content.trim();
     // Only hide if it's strictly a JSON object/array or a markdown code block
     const isStrictJson = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
@@ -29,7 +30,11 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
     
     // Standard text
     return <p className="text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap">{content}</p>;
-  };
+  }, []);
+
+  const visibleLogs = useMemo(() => {
+    return logs.filter(log => log.content && log.content.trim() !== "");
+  }, [logs]);
 
   return (
     <div className="flex flex-col gap-10 pb-40 max-w-2xl mx-auto w-full px-6 pt-16">
@@ -49,7 +54,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
 
       {/* Agent Response Stream */}
       <div className="space-y-8">
-        {logs.filter(log => log.content && log.content.trim() !== "").map((log) => {
+        {visibleLogs.map((log) => {
           const content = formatContent(log.content);
           if (log.type === 'thought' && !content) return null;
 
@@ -286,4 +291,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
       </div>
     </div>
   );
-};
+});
+
+// Set Display Name for Debugging
+MessageList.displayName = 'MessageList';
