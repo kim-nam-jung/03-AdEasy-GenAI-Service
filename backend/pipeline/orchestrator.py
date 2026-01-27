@@ -102,7 +102,7 @@ class PipelineOrchestrator:
             }
             
             # Compile and run graph
-            app = create_agent_graph(self.task_id, self.redis_mgr)
+            app = create_agent_graph(self.task_id)
             final_state = app.invoke(initial_state, {"recursion_limit": 50})
             
             # Check for errors
