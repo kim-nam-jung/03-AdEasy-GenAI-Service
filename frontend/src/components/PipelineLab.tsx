@@ -262,8 +262,9 @@ export const PipelineLab: React.FC = () => {
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+            <div className="flex-1 flex gap-6 overflow-hidden">
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
                 {activeTab === 'upload' && !isProcessing && !taskId && (
                     <div className="space-y-6 max-w-2xl mx-auto pt-10">
                          <section className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-xl shadow-zinc-200/50">
