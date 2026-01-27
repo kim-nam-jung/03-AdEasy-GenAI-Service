@@ -19,12 +19,11 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
   // Helper to hide purely technical JSON content from thoughts
   const formatContent = (content: string) => {
     const trimmed = content.trim();
-    // If it's a raw JSON object or contains a JSON code block, hide it
-    if (
-      (trimmed.startsWith('{') && trimmed.endsWith('}')) || 
-      trimmed.includes('```json') ||
-      (trimmed.includes('{') && trimmed.includes('}') && trimmed.includes('"'))
-    ) {
+    // Only hide if it's strictly a JSON object/array or a markdown code block
+    const isStrictJson = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    const isCodeBlock = trimmed.includes('```json');
+    
+    if (isStrictJson || isCodeBlock) {
       return null;
     }
     
@@ -210,7 +209,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                       </div>
                       <div className="flex-1 space-y-1">
                         <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-3">Supervisor Feedback</span>
-                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl rounded-tl-none px-5 py-3.5 shadow-sm inline-block">
+                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl rounded-tl-none px-5 py-3.5 shadow-sm inline-block max-w-full">
                           <p className="text-zinc-700 text-[15px] leading-relaxed italic font-medium">
                             {parsed.reflection}
                           </p>
@@ -225,32 +224,58 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                    );
                  }
 
-                 // Handle Intermediate data (Segmentation etc)
+                 // Handle Intermediate data (Segmentation, Vision Analysis Brief etc)
                  if (parsed && !parsed.error) {
                    const isSegmentation = parsed.segmented_layers && Array.isArray(parsed.segmented_layers);
                    
-                   // HIDE technical results like vision analysis tables
-                   // ONLY show visual results like segmentation layers
-                   if (!isSegmentation) return null;
-                   
-                   return (
-                     <div className="my-6 ml-12">
-                       <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm max-w-lg">
-                         <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
-                           <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">
-                             {log.metadata?.status?.replace(/_/g, ' ') || 'Process Insight'}
-                           </span>
-                         </div>
-                         <div className="p-4">
-                            <div className="grid grid-cols-3 gap-2">
-                              {parsed.segmented_layers.map((layer: string, idx: number) => (
-                                <img key={idx} src={ensureUrl(layer)} className="w-full aspect-square object-cover rounded-lg border border-zinc-100 hover:scale-105 transition-transform" alt="layer" />
-                              ))}
-                            </div>
+                   if (isSegmentation) {
+                     return (
+                       <div className="my-6 ml-12">
+                         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm max-w-lg">
+                           <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
+                             <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">
+                               {log.metadata?.status?.replace(/_/g, ' ') || 'Process Insight'}
+                             </span>
+                           </div>
+                           <div className="p-4">
+                              <div className="grid grid-cols-3 gap-2">
+                                {parsed.segmented_layers.map((layer: string, idx: number) => (
+                                  <img key={idx} src={ensureUrl(layer)} className="w-full aspect-square object-cover rounded-lg border border-zinc-100 hover:scale-105 transition-transform" alt="layer" />
+                                ))}
+                              </div>
+                           </div>
                          </div>
                        </div>
-                     </div>
-                   );
+                     );
+                   }
+
+                   // Show a clean brief for other informative JSON results (like vision analysis)
+                   const infoFields = ['product_type', 'description', 'material', 'suggested_video_prompt', 'analysis'];
+                   const hasInfo = infoFields.some(f => parsed[f]);
+                   
+                   if (hasInfo) {
+                     return (
+                       <div className="my-6 ml-12">
+                         <div className="bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm max-w-lg">
+                           <div className="flex items-center gap-2 mb-4">
+                             <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Analysis Brief</span>
+                           </div>
+                           <div className="space-y-4">
+                             {Object.entries(parsed).map(([key, value]) => {
+                               if (!infoFields.includes(key) || typeof value !== 'string' || value.length > 500) return null;
+                               return (
+                                 <div key={key} className="flex flex-col gap-1 border-b border-zinc-50 pb-2 last:border-0 underline-offset-4">
+                                   <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">{key.replace(/_/g, ' ')}</span>
+                                   <p className="text-[13px] text-zinc-700 leading-snug">{value}</p>
+                                 </div>
+                               );
+                             })}
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   }
                  }
 
                  return null; // Don't show raw text results - rely on agent reflection

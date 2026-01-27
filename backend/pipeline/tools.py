@@ -149,19 +149,25 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
     """
     logger.info(f"[Tool] Executing segmentation_tool for task {task_id}")
     try:
-        config, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        config, task_paths, _, vram_mgr = _get_tool_dependencies(task_id)
         vram_mgr.cleanup() # Ensure fresh start
         executor = Step1Segmentation(vram_mgr)
         
+        # Ensure image_path is absolute if passed as relative
+        if not os.path.isabs(image_path) and not image_path.startswith('http'):
+             image_path = str(task_paths.input_dir / os.path.basename(image_path))
+
         result = executor.execute(
             task_id=task_id,
             image_paths=[image_path],
             config={"segmentation": {"num_layers": num_layers, "resolution": resolution}}
         )
         
-        # Convert paths to web paths for frontend
-        result["segmented_layers"] = [task_paths.to_web_path(p) for p in result["segmented_layers"]]
-        result["main_product_layer"] = task_paths.to_web_path(result["main_product_layer"])
+        # Convert absolute paths to web-accessible paths for frontend
+        converted_result = {
+            "segmented_layers": [task_paths.to_web_path(p) for p in result.get("segmented_layers", [])],
+            "main_product_layer": task_paths.to_web_path(result.get("main_product_layer", ""))
+        }
         
         # Publish status for UI sync
         redis_mgr = RedisManager.from_env()
@@ -169,14 +175,14 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
             task_id=task_id,
             status="step1_completed",
             message="Segmentation finished",
-            extra={"result": result}
+            extra={"result": converted_result}
         )
-        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step1_completed", "data": result})
+        redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "step1_completed", "data": converted_result})
         
-        return json.dumps(result)
+        return json.dumps(converted_result)
     except Exception as e:
-        logger.error(f"[Tool] segmentation_tool failed for task {task_id}: {e}")
-        return json.dumps({"error": str(e)})
+        logger.error(f"[Tool] segmentation_tool failed for task {task_id}: {str(e)}")
+        return json.dumps({"error": str(e), "decision": "retry"})
 
 @tool
 def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, num_frames: int = 96) -> str:
