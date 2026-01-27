@@ -145,6 +145,41 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                                </p>
                              </div>
                            )}
+
+                           {/* Human Interaction: Approval Button */}
+                           {log.status === 'planning_proposed' && (
+                              <div className="mt-8 flex justify-end">
+                                <button 
+                                  onClick={async (e) => {
+                                    const btn = e.currentTarget;
+                                    btn.disabled = true;
+                                    try {
+                                      const formData = new FormData();
+                                      formData.append('feedback', 'Approved');
+                                      await fetch(`${API_URL}/api/v1/tasks/${log.taskId}/feedback`, {
+                                        method: 'POST',
+                                        headers: { 'X-API-Key': 'adeasy-secret-key' },
+                                        body: formData
+                                      });
+                                    } catch (err) {
+                                      console.error("Plan approval failed:", err);
+                                      btn.disabled = false;
+                                    }
+                                  }}
+                                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[13px] font-bold transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                  Approve & Start
+                                </button>
+                              </div>
+                            )}
+
+                            {(log.status === 'planning_completed' || log.status === 'feedback_received') && (
+                              <div className="mt-6 flex items-center gap-2 text-green-400 text-[11px] font-bold uppercase tracking-wider">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                Plan Approved
+                              </div>
+                            )}
                          </div>
                        </div>
                      </div>
