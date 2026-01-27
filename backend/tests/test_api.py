@@ -17,7 +17,7 @@ def test_root():
 def test_create_task_validation():
     # Test without files
     headers = {"X-API-Key": settings.API_KEY}
-    response = client.post("/api/v1/tasks/", headers=headers)
+    response = client.post("/api/v1/tasks", headers=headers)
     assert response.status_code == 422  # Validation Error
 
 def test_get_non_existent_task():

@@ -12,17 +12,17 @@ def test_auth_success():
     # Since create task requires files, getting a 422 with a key is success (passed auth), gets 401 without key.
     
     # Authenticated request -> 422 (Validation Error), NOT 401
-    response = client.post("/api/v1/tasks/", headers=headers)
+    response = client.post("/api/v1/tasks", headers=headers)
     assert response.status_code == 422 
 
 def test_auth_failure_no_key():
-    response = client.post("/api/v1/tasks/")
+    response = client.post("/api/v1/tasks")
     # Missing Header raises 422 Validation Error in FastAPI default
     assert response.status_code == 422
     assert response.json()["detail"][0]["msg"] == "Field required" # Standard Pydantic error
 
 def test_auth_failure_invalid_key():
     headers = {"X-API-Key": "wrong-key"}
-    response = client.post("/api/v1/tasks/", headers=headers)
+    response = client.post("/api/v1/tasks", headers=headers)
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid API Key"
