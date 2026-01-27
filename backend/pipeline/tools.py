@@ -376,7 +376,7 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
             full_content += token
             # Direct publish to Redis
             redis_mgr.publish(f"task:{task_id}", {
-                "type": "thought_stream",
+                "type": "token",
                 "content": token
             })
     except Exception as stream_err:
