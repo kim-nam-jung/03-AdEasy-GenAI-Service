@@ -182,6 +182,10 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                  if (parsed && !parsed.error) {
                    const isSegmentation = parsed.segmented_layers && Array.isArray(parsed.segmented_layers);
                    
+                   // HIDE technical results like vision analysis tables
+                   // ONLY show visual results like segmentation layers
+                   if (!isSegmentation) return null;
+                   
                    return (
                      <div className="my-6 ml-12">
                        <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm max-w-lg">
@@ -191,38 +195,18 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                            </span>
                          </div>
                          <div className="p-4">
-                           {isSegmentation ? (
-                             <div className="grid grid-cols-3 gap-2">
-                               {parsed.segmented_layers.map((layer: string, idx: number) => (
-                                 <img key={idx} src={ensureUrl(layer)} className="w-full aspect-square object-cover rounded-lg border border-zinc-100 hover:scale-105 transition-transform" alt="layer" />
-                               ))}
-                             </div>
-                           ) : (
-                             <div className="grid grid-cols-1 gap-y-2">
-                               {Object.entries(parsed).map(([key, value]: [string, any]) => {
-                                 if (typeof value === 'object' || key.includes('path')) return null;
-                                 return (
-                                   <div key={key} className="flex px-2 py-1 hover:bg-zinc-50 rounded-md transition-colors">
-                                     <span className="text-[9px] font-bold text-zinc-400 uppercase shrink-0 w-24 pt-0.5">{key.replace(/_/g, ' ')}</span>
-                                     <p className="text-[13px] text-zinc-600 leading-snug">{String(value)}</p>
-                                   </div>
-                                 )
-                               })}
-                             </div>
-                           )}
+                            <div className="grid grid-cols-3 gap-2">
+                              {parsed.segmented_layers.map((layer: string, idx: number) => (
+                                <img key={idx} src={ensureUrl(layer)} className="w-full aspect-square object-cover rounded-lg border border-zinc-100 hover:scale-105 transition-transform" alt="layer" />
+                              ))}
+                            </div>
                          </div>
                        </div>
                      </div>
                    );
                  }
 
-                 return (
-                   <div className="my-4 ml-12">
-                      <div className="bg-white border border-zinc-100 rounded-xl px-4 py-3 shadow-sm inline-block">
-                         <p className="text-[13px] text-zinc-500 leading-relaxed">{log.content}</p>
-                      </div>
-                   </div>
-                 );
+                 return null; // Don't show raw text results - rely on agent reflection
               })()}
             </div>
           );
