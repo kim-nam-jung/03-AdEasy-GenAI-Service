@@ -11,7 +11,7 @@ export const PipelineLab: React.FC = () => {
     // Global Store
     const {
         taskId, status, progress,
-        isProcessing,
+        activeTab, isProcessing,
         showFeedbackModal, feedbackQuestion, feedbackContext,
         
         setTaskId, 
