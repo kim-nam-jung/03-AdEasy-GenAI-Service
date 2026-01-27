@@ -146,31 +146,46 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                              </div>
                            )}
 
-                           {/* Human Interaction: Approval Button */}
+                           {/* Human Interaction: Approval Input & Button */}
                            {log.status === 'planning_proposed' && (
-                              <div className="mt-8 flex justify-end">
-                                <button 
-                                  onClick={async (e) => {
-                                    const btn = e.currentTarget;
-                                    btn.disabled = true;
-                                    try {
-                                      const formData = new FormData();
-                                      formData.append('feedback', 'Approved');
-                                      await fetch(`${API_URL}/api/v1/tasks/${log.taskId}/feedback`, {
-                                        method: 'POST',
-                                        headers: { 'X-API-Key': 'adeasy-secret-key' },
-                                        body: formData
-                                      });
-                                    } catch (err) {
-                                      console.error("Plan approval failed:", err);
-                                      btn.disabled = false;
-                                    }
-                                  }}
-                                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[13px] font-bold transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-500/20"
-                                >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                  Approve & Start
-                                </button>
+                              <div className="mt-8 space-y-4">
+                                <div className="relative">
+                                  <textarea
+                                    id={`feedback-${log.id}`}
+                                    placeholder="Add feedback or adjustments (optional)..."
+                                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-2xl px-5 py-4 text-[14px] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 min-h-[100px] resize-none transition-all"
+                                  />
+                                </div>
+                                <div className="flex justify-end">
+                                  <button 
+                                    onClick={async (e) => {
+                                      const btn = e.currentTarget;
+                                      const textarea = document.getElementById(`feedback-${log.id}`) as HTMLTextAreaElement;
+                                      const feedbackText = textarea?.value?.trim() || 'Approved';
+                                      
+                                      btn.disabled = true;
+                                      if (textarea) textarea.disabled = true;
+                                      
+                                      try {
+                                        const formData = new FormData();
+                                        formData.append('feedback', feedbackText);
+                                        await fetch(`${API_URL}/api/v1/tasks/${log.taskId}/feedback`, {
+                                          method: 'POST',
+                                          headers: { 'X-API-Key': 'adeasy-secret-key' },
+                                          body: formData
+                                        });
+                                      } catch (err) {
+                                        console.error("Plan approval failed:", err);
+                                        btn.disabled = false;
+                                        if (textarea) textarea.disabled = false;
+                                      }
+                                    }}
+                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-[14px] font-bold transition-all active:scale-95 flex items-center gap-2 shadow-xl shadow-blue-500/20"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                    Approve & Start
+                                  </button>
+                                </div>
                               </div>
                             )}
 
