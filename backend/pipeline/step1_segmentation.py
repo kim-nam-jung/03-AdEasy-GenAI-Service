@@ -59,9 +59,13 @@ class Step1Segmentation:
             self.loader = SAM2Loader()
             self.vram_manager.load_model("sam2", self.loader)
             
+            # Get detailed config
+            prompt_mode = seg_config.get("prompt_mode", "center")
+            
             # Perform segmentation (Product only)
             product_image = self.loader.segment_product(
-                image_path=input_image
+                image_path=input_image,
+                prompt_mode=prompt_mode
             )
             
             # Save results

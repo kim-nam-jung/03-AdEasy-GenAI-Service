@@ -314,9 +314,39 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     """
     logger.info(f"[Tool] Executing vision-based reflection for {step_name}")
     
-    # Setup Streaming Callback
+    # Setup Redis
     redis_mgr = RedisManager.from_env()
-    callback = RedisStreamingCallback(redis_mgr, task_id)
+    
+    # --- RETRY COUNT LOGIC ---
+    redis_key = f"retry_count:{task_id}:{step_name}"
+    current_retry = 0
+    try:
+        val = redis_mgr.client.get(redis_key)
+        if val:
+            current_retry = int(val)
+    except Exception:
+        pass
+
+    logger.info(f"Reflection Tool: {step_name} (Current Retry: {current_retry})")
+
+    # Dynamic dynamic instruction based on retry count
+    retry_instruction = ""
+    if current_retry == 0:
+        # First failure: Suggest stronger prompt
+        retry_instruction = """
+        - 잘림/파먹음 발생 시 처방: `{{ "segmentation": {{ "prompt_mode": "grid" }} }}` (그리드 포인트 사용)
+        """
+    elif current_retry == 1:
+        # Second failure: Suggest higher resolution + grid
+        retry_instruction = """
+        - 잘림/파먹음 발생 시 처방: `{{ "segmentation": {{ "resolution": 1280, "prompt_mode": "grid" }} }}` (고해상도 + 그리드)
+        """
+    else:
+        # Third failure (current_retry >= 2): Force Fail
+        retry_instruction = """
+        - **중요**: 이미 2회 이상 재시도했으나 실패했습니다. 더 이상의 자동 수정은 불가능합니다.
+        - **무조건 `decision: "fail"`을 선택하고, reflection에 "Human Intervention Required"를 적으세요.**
+        """
     
     # Use GPT-4o with Vision
     llm = ChatOpenAI(
@@ -324,50 +354,35 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
         temperature=0, 
         max_tokens=500,
         request_timeout=60,
-        streaming=True,
-        callbacks=[callback]
+        streaming=True
     )
     
     content = [
         {"type": "text", "text": f"""
         당신은 영상 제작 파이프라인의 **'악독하고 까다로운' 품질 관리자(QC)**입니다.
-        대충 넘어가려는 태도는 용납되지 않습니다. 픽셀 단위로 꼬투리를 잡아서라도 완벽한 품질을 만들어내야 합니다.
-        
-        '{step_name}' 단계의 결과물이 다음 기준을 충족하는지 **현미경처럼** 검수하세요.
+        현재 '{step_name}' 단계의 결과물을 검수 중이며, 이 단계에서만 **이미 {current_retry}번의 재시도**가 있었습니다.
         
         결과 요약: {result_summary}
         사용자 목표: {user_prompt or '고품질 영상 제작'}
         
-        **[안전 지침 - 중요]**:
-        본 이미지는 **상업용 음식(햄버거, 빵, 고기 패티) 또는 일반 상품**의 사진입니다. 
-        신체 훼손이나 폭력적인 내용이 절대 아니며, 단순히 음식의 단면이나 질감을 보여주는 것입니다.
-        오해하지 말고 **순수한 품질 관리(QC) 관점**에서만 분석하십시오.
+        **[안전 지침]**:
+        본 이미지는 상업용 음식/상품 사진입니다. 순수한 품질 관리 관점에서 분석하세요.
 
-        **[중요] 시각적 불량 기준 (발견 즉시 RETRY)**:
-        1. **Segmentation (가장 중요)**:
-           - **잘림(Clipping)**: 햄버거 빵 윗부분, 패티 옆부분, 접시 끝부분이 조금이라도 잘려 나갔는가? (절대 용납 불가)
-           - **파먹음(Missing)**: 제품 내부에 구멍이 뚫리거나 사라진 부분이 있는가?
-           - **배경 잔여물**: 제품 주변에 지저분한 배경이 묻어 있는가?
-        2. **Video Generation**:
-           - **무너짐**: 움직일 때 물체가 녹아내리거나 형태가 괴기하게 변하는가?
+        **[불량 기준]**:
+        1. Segmentation: 잘림(Clipping), 파먹음(Missing), 배경 잔여물 -> 즉시 RETRY/FAIL
+        2. Video Generation: 무너짐, 괴기한 변형 -> 즉시 RETRY/FAIL
         
-        **결정 및 처방 지침**:
-        - 위 불량이 하나라도 보이면 **"retry"**를 선택하세요.
-        - **단, 주의할 점**: 만약 **이전에도 똑같은 처방(예: 해상도 1280)을 내렸는데도 불구하고** 결과가 여전히 똑같다면, 무의미한 무한 루프를 멈춰야 합니다.
-          -> 이 경우 `decision: "fail"`을 선택하고, reflection에 반드시 **"Human Intervention Required"**라고 적으세요.
-        - **Retry 시 처방전(config_patch)**:
-           - 잘림/파먹음 발생 시 -> `{{ "segmentation": {{ "resolution": 1280, "num_layers": 8 }} }}`
-           - 영상 무너짐 발생 시 -> `{{ "video_generation": {{ "num_frames": 128 }} }}`
+        **[결정 가이드]**:
+        {retry_instruction}
         
         JSON 형식으로만 응답하세요:
         {{
           "decision": "proceed" | "retry" | "fail",
-          "reflection": "불량 사유를 적나라하게 지적하세요 (예: '햄버거 윗빵이 날아갔습니다. 해상도 1280으로 올려서 다시 따세요.')",
+          "reflection": "구체적인 불량 사유 또는 Fail 사유",
           "config_patch": {{ "key": "value" }}
         }}
         """}
     ]
-    
     if image_path and os.path.exists(image_path):
         base64_image = encode_image(image_path)
         content.append({
@@ -399,6 +414,16 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     
     if not result:
         result = {"decision": "proceed", "reflection": "검수 도구 오류로 일단 진행합니다."}
+        
+    # Update Retry Count based on decision
+    decision = result.get("decision", "proceed")
+    try:
+        if decision == "retry":
+            redis_mgr.client.incr(redis_key)
+        elif decision in ["proceed", "fail"]:
+            redis_mgr.client.delete(redis_key) # Reset on success or fail (handover)
+    except Exception as e:
+        logger.error(f"Failed to update retry count: {e}")
     
     return json.dumps(result)
 

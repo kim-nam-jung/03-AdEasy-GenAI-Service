@@ -87,36 +87,39 @@ class SAM2Loader:
     def segment_product(
         self,
         image_path: str,
-        threshold: float = 0.5
+        threshold: float = 0.5,
+        prompt_mode: str = "center"  # center, grid
     ) -> Image.Image:
         """
-        Segment the main product from an image (simple nukki).
-        
+        Segment context-aware product.
         Args:
-            image_path: Path to input image
-            threshold: Confidence threshold
-            
-        Returns:
-            PIL Image (RGBA) with background removed
+            prompt_mode: 'center' for single point, 'grid' for multiple points.
         """
         if self.predictor is None:
             raise RuntimeError("Predictor not loaded. Call load() first.")
             
-        logger.info(f"Segmenting image: {image_path}")
+        logger.info(f"Segmenting image: {image_path} with mode: {prompt_mode}")
         
         try:
             # Load image
             image = Image.open(image_path).convert("RGB")
             image_np = np.array(image)
-            
             self.predictor.set_image(image_np)
             
-            # For "just segmenting the product", we often use a simple point prompt
-            # in the center or let the model predict the most prominent object.
-            # Here we'll use a center point as a hint.
             w, h = image.size
-            input_point = np.array([[w // 2, h // 2]])
-            input_label = np.array([1])
+            
+            if prompt_mode == "grid":
+                # Use a 2x2 grid of positive points to catch larger objects
+                input_point = np.array([
+                    [w//3, h//3], [2*w//3, h//3],
+                    [w//3, 2*h//3], [2*w//3, 2*h//3],
+                    [w//2, h//2] # Center too
+                ])
+                input_label = np.array([1, 1, 1, 1, 1])
+            else:
+                # Default: Center point
+                input_point = np.array([[w // 2, h // 2]])
+                input_label = np.array([1])
             
             masks, scores, logits = self.predictor.predict(
                 point_coords=input_point,
@@ -124,20 +127,20 @@ class SAM2Loader:
                 multimask_output=True,
             )
             
-            # Select the mask with the highest score
+            # Select best mask
             best_mask_idx = np.argmax(scores)
             mask = masks[best_mask_idx]
             
-            # Create RGBA image
+            # Create RGBA
             rgba_image = Image.open(image_path).convert("RGBA")
             rgba_np = np.array(rgba_image)
-            
-            # Apply mask to alpha channel
             rgba_np[..., 3] = (mask * 255).astype(np.uint8)
             
-            result_image = Image.fromarray(rgba_np)
-            logger.info("Successfully removed background")
-            return result_image
+            return Image.fromarray(rgba_np)
+            
+        except Exception as e:
+            logger.error(f"Background removal failed: {e}")
+            raise
             
         except Exception as e:
             logger.error(f"Background removal failed: {e}")
