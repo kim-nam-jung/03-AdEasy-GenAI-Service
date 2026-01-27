@@ -63,6 +63,18 @@ export function useReflectionStream(taskId: string | null) {
                 taskId: taskId || undefined
             }]);
         } else if (msgData.type === 'tool_call') {
+            // If there's a log message, show it as a thought bubble first
+            if (msgData.log && msgData.log.trim()) {
+                setLogs(prev => [...prev, {
+                    id: ++logIdRef.current,
+                    type: 'thought',
+                    content: msgData.log,
+                    isComplete: true,
+                    timestamp: new Date().toLocaleTimeString(),
+                    taskId: taskId || undefined
+                }]);
+            }
+            
             setLogs(prev => [...prev, {
                 id: ++logIdRef.current,
                 type: 'tool_call',
