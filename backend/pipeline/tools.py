@@ -361,7 +361,8 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
             "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
         })
     
-    response = llm.invoke([HumanMessage(content=content)])
+    # Explicitly pass callbacks to invoke to guarantee streaming
+    response = llm.invoke([HumanMessage(content=content)], config={"callbacks": [callback]})
     raw_content = response.content.strip()
     
     from common.utils import extract_json_from_text
