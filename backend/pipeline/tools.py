@@ -361,9 +361,24 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
             "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
         })
     
-    # Explicitly pass callbacks to invoke to guarantee streaming
-    response = llm.invoke([HumanMessage(content=content)], config={"callbacks": [callback]})
-    raw_content = response.content.strip()
+    # Direct Streaming Loop (Bypassing Callbacks for reliability)
+    full_content = ""
+    try:
+        for chunk in llm.stream([HumanMessage(content=content)]):
+            token = chunk.content
+            full_content += token
+            # Direct publish to Redis
+            redis_mgr.publish(f"task:{task_id}", {
+                "type": "thought_stream",
+                "content": token
+            })
+    except Exception as stream_err:
+        logger.error(f"Streaming failed: {stream_err}")
+        # Fallback to non-streaming if stream fails
+        result = llm.invoke([HumanMessage(content=content)])
+        full_content = result.content
+
+    raw_content = full_content.strip()
     
     from common.utils import extract_json_from_text
     result = extract_json_from_text(raw_content)
