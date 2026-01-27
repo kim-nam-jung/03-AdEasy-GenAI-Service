@@ -7,6 +7,17 @@ import json
 
 logger = get_logger("RedisCallback")
 
+# Tool descriptions in Korean for user-friendly messages
+TOOL_DESCRIPTIONS = {
+    "vision_parsing_tool": "업로드된 이미지를 분석하여 제품의 특성과 최적의 연출 방향을 파악하고 있습니다...",
+    "planning_tool": "분석 결과를 바탕으로 영상 연출 기획안을 작성하고 있습니다...",
+    "segmentation_tool": "배경에서 제품을 정교하게 분리하고 있습니다...",
+    "reflection_tool": "작업 결과물의 품질을 검수하고 있습니다...",
+    "video_generation_tool": "AI 영상 생성 모델을 사용하여 제품 영상을 제작하고 있습니다...",
+    "postprocess_tool": "최종 영상의 해상도와 품질을 향상시키고 있습니다...",
+    "ask_human_tool": "사용자의 피드백을 요청하고 있습니다...",
+}
+
 class RedisStreamingCallback(BaseCallbackHandler):
     """
     Callback handler that streams LLM tokens, thoughts, and tool events to Redis Pub/Sub.
@@ -40,6 +51,14 @@ class RedisStreamingCallback(BaseCallbackHandler):
     def on_agent_action(self, action: AgentAction, **kwargs: Any) -> Any:
         """Run when an agent action is taken (tool call selected)."""
         try:
+            # Send a user-friendly thought message before tool call
+            tool_desc = TOOL_DESCRIPTIONS.get(action.tool, f"{action.tool}을(를) 실행하고 있습니다...")
+            self.redis.client.publish(self.channel, json.dumps({
+                "type": "thought",
+                "message": tool_desc
+            }, ensure_ascii=False))
+
+            # Then send the tool call event
             self.redis.client.publish(self.channel, json.dumps({
                 "type": "tool_call",
                 "tool": action.tool,
