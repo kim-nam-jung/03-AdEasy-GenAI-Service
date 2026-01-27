@@ -57,9 +57,12 @@ def test_reflection_tool_streaming_and_qc(mock_redis, mock_llm):
     step_name = "segmentation_tool"
     result_summary = "Image segmented."
     
-    # Execute the tool
-    # Note: image_path is optional. We skip it to avoid File I/O but the logic handles None.
-    result_json = reflection_tool(task_id, step_name, result_summary)
+    # Execute the tool using KEYWORD arguments to avoid BaseTool positional arg issues
+    result_json = reflection_tool(
+        task_id=task_id, 
+        step_name=step_name, 
+        result_summary=result_summary
+    )
     
     # 1. Verify Streaming to Redis
     # We expect multiple publish calls, one for each "thought" chunk

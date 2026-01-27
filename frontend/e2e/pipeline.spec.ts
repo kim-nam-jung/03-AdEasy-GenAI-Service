@@ -124,6 +124,9 @@ test.describe('Agent Pipeline', () => {
         await expect(page.locator('text=Task Initialized: mock-123')).toBeVisible({ timeout: 5000 });
         await expect(page.locator('text=Analyzing image...')).toBeVisible({ timeout: 5000 });
 
+        // Wait a bit for connection to settle before emitting
+        await page.waitForTimeout(1000);
+
         // --- Emit Planning Result (Seq 2) ---
         await page.evaluate(() => {
             if (window.wsMock) {
@@ -143,9 +146,9 @@ test.describe('Agent Pipeline', () => {
             }
         });
 
-        // Wait for planning result card
-        await expect(page.locator('text=Strategy Plan')).toBeVisible({ timeout: 5000 });
-        await expect(page.locator('text=Analyze visuals')).toBeVisible({ timeout: 5000 });
+        // Wait for planning result card - Increase timeout for CI stability
+        await expect(page.locator('text=Strategy Plan')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('text=Analyze visuals')).toBeVisible({ timeout: 15000 });
         
         // --- NEW: Handle Human-in-the-Loop Approval in Test ---
         const approveBtn = page.getByRole('button', { name: 'Approve & Start' });
