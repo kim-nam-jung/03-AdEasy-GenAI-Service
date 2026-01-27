@@ -330,28 +330,39 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     logger.info(f"Reflection Tool: {step_name} (Current Retry: {current_retry})")
 
     # Dynamic dynamic instruction based on retry count
-    retry_instruction = ""
-    if current_retry == 0:
-        # First failure: Suggest stronger prompt
-        retry_instruction = """
-        - 잘림/파먹음 발생 시 처방: `{{ "segmentation": {{ "prompt_mode": "grid" }} }}` (그리드 포인트 사용)
-        """
-    elif current_retry == 1:
-        # Second failure: Suggest higher resolution + grid
-        retry_instruction = """
-        - 잘림/파먹음 발생 시 처방: `{{ "segmentation": {{ "resolution": 1280, "prompt_mode": "grid" }} }}` (고해상도 + 그리드)
+    retry_context = ""
+    if current_retry >= 2:
+        # Third failure: Force Fail
+        retry_context = """
+        - **[CRITICAL]**: 이미 2회 이상 재시도했으나 실패했습니다. 더 이상의 자동 수정은 무의미합니다.
+        - **무조건 `decision: "fail"`을 선택하고, reflection에 "Human Intervention Required"를 적으세요.**
         """
     else:
-        # Third failure (current_retry >= 2): Force Fail
-        retry_instruction = """
-        - **중요**: 이미 2회 이상 재시도했으나 실패했습니다. 더 이상의 자동 수정은 불가능합니다.
-        - **무조건 `decision: "fail"`을 선택하고, reflection에 "Human Intervention Required"를 적으세요.**
+        # Retry available: Provide Toolbox
+        retry_context = f"""
+        - 현재 **{current_retry + 1}번째 수정 시도**입니다. 이전 시도가 실패했음을 인지하고, 더 강력하거나 다른 파라미터를 선택해보세요.
+        
+        **[가용 파라미터 도구함 (Parameter Toolbox)]**:
+        문제를 해결하기 위해 아래 파라미터들을 조합하여 `config_patch`를 만드세요.
+        
+        **1. Segmentation (잘림, 파먹음, 배경 잔여물)**
+        - `prompt_mode`: 
+          - `"center"` (기본값): 중앙에 있는 물체 하나만 따냄.
+          - `"grid"` (강력): **물체의 일부가 잘려 나갈 때 필수.** 여러 지점을 찍어 전체를 커버함.
+        - `resolution`: `640` (기본) ~ `2048`. 해상도를 높이면 디테일이 살아남.
+        - `num_layers`: `4` (기본) ~ `10`. 레이어가 많으면 더 정교하게 분리될 수 있음.
+
+        **2. Video Generation (무너짐, 기괴함)**
+        - `num_frames`: `96` (기본) ~ `255`. 프레임을 늘리면 더 부드러워질 수 있음.
+        
+        **[판단 가이드]**:
+        - 단순히 해상도만 높이는 것은 큰 효과가 없을 수 있습니다. **잘림(Clipping)** 현상은 주로 `prompt_mode`를 `"grid"`로 바꾸면 해결됩니다.
         """
     
     # Use GPT-4o with Vision
     llm = ChatOpenAI(
         model="gpt-4o", 
-        temperature=0, 
+        temperature=0.2, # Slightly creative for problem solving
         max_tokens=500,
         request_timeout=60,
         streaming=True
@@ -360,7 +371,7 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     content = [
         {"type": "text", "text": f"""
         당신은 영상 제작 파이프라인의 **'악독하고 까다로운' 품질 관리자(QC)**입니다.
-        현재 '{step_name}' 단계의 결과물을 검수 중이며, 이 단계에서만 **이미 {current_retry}번의 재시도**가 있었습니다.
+        현재 '{step_name}' 단계의 결과물을 검수 중입니다.
         
         결과 요약: {result_summary}
         사용자 목표: {user_prompt or '고품질 영상 제작'}
@@ -369,16 +380,16 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
         본 이미지는 상업용 음식/상품 사진입니다. 순수한 품질 관리 관점에서 분석하세요.
 
         **[불량 기준]**:
-        1. Segmentation: 잘림(Clipping), 파먹음(Missing), 배경 잔여물 -> 즉시 RETRY/FAIL
-        2. Video Generation: 무너짐, 괴기한 변형 -> 즉시 RETRY/FAIL
+        1. Segmentation: 잘림(Clipping), 파먹음(Missing), 배경 잔여물 -> 즉시 RETRY
+        2. Video Generation: 무너짐, 괴기한 변형 -> 즉시 RETRY
         
-        **[결정 가이드]**:
-        {retry_instruction}
+        **[처방 지침]**:
+        {retry_context}
         
         JSON 형식으로만 응답하세요:
         {{
           "decision": "proceed" | "retry" | "fail",
-          "reflection": "구체적인 불량 사유 또는 Fail 사유",
+          "reflection": "불량 원인 분석 및 선택한 파라미터에 대한 근거 (예: '윗부분이 잘렸으므로 grid 모드를 사용해 전체 영역을 잡겠습니다.')",
           "config_patch": {{ "key": "value" }}
         }}
         """}
