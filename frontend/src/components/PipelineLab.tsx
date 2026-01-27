@@ -11,18 +11,17 @@ export const PipelineLab: React.FC = () => {
     // Global Store
     const {
         taskId, status, progress,
-        activeTab, isProcessing,
-        visionResult, segmentationResult, rawVideoResult, finalResult,
+        isProcessing,
         showFeedbackModal, feedbackQuestion, feedbackContext,
         
         setTaskId, 
-        setActiveTab, setIsProcessing,
+        setIsProcessing,
         openFeedbackModal, closeFeedbackModal, updateTaskStatus, resetPipeline
     } = usePipelineStore();
     
     // Toast
     const { addToast } = useToastStore();
-
+    
     // Local inputs for creating a new task
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [prompt, setPrompt] = useState("");
@@ -110,23 +109,10 @@ export const PipelineLab: React.FC = () => {
 
     // Parse status updates to populate results
     const handleStatusUpdate = (data: any) => {
-         if (!data.data) return;
-         
          const updates: any = { status: data.status };
 
-         if (data.status === 'vision_completed') {
-             updates.visionResult = data.data;
-             updates.activeTab = 'vision';
-         } else if (data.status === 'step1_completed') {
-             updates.segmentationResult = data.data;
-             updates.activeTab = 'segmentation';
-         } else if (data.status === 'step2_completed') {
-             updates.rawVideoResult = data.data;
-             updates.activeTab = 'video';
-         } else if (data.status === 'completed') {
-             updates.finalResult = data.data;
+         if (data.status === 'completed') {
              updates.isProcessing = false;
-             updates.activeTab = 'result';
              addToast('success', "Pipeline Completed Successfully!");
          } else if (data.status === 'failed') {
              updates.isProcessing = false;
