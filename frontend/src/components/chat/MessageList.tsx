@@ -65,7 +65,13 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                       <div className="w-1 h-1 rounded-full bg-green-400" />
                    </div>
                    <div className="p-4">
-                      <p className="text-[13px] text-zinc-500 leading-relaxed italic font-medium">"{log.content}"</p>
+                      {log.content.trim().startsWith('{') || log.content.trim().startsWith('```') ? (
+                        <pre className="bg-zinc-100 border border-zinc-200 rounded-lg p-3 text-[12px] font-mono text-zinc-600 overflow-x-auto">
+                          {log.content.replace(/```json|```/g, '').trim()}
+                        </pre>
+                      ) : (
+                        <p className="text-[13px] text-zinc-500 leading-relaxed font-medium whitespace-pre-wrap">{log.content}</p>
+                      )}
                    </div>
                 </div>
               </div>
