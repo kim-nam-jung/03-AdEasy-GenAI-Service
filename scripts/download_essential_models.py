@@ -59,4 +59,6 @@ def download_ltx_video():
 if __name__ == "__main__":
     download_sam2()
     download_ltx_video()
-    print("✨ Core models (SAM 2 & LTX-2 Pro) are ready!")
+    download_rife()
+    download_real_cugan()
+    print("✨ All essential models (SAM 2, LTX-2 Pro, RIFE, Real-CUGAN) are ready!")
