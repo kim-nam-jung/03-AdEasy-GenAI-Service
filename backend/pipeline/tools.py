@@ -149,6 +149,7 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
     logger.info(f"[Tool] Executing segmentation_tool for task {task_id}")
     try:
         config, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        vram_mgr.cleanup() # Ensure fresh start
         executor = Step1Segmentation(vram_mgr)
         
         result = executor.execute(
@@ -188,6 +189,8 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
     logger.info(f"[Tool] Executing video_generation_tool for task {task_id}")
     try:
         _, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        vram_mgr.unload_all() # Clear Step 1 models
+        vram_mgr.cleanup()
         executor = Step2VideoGeneration(vram_mgr)
         
         result = executor.execute(
@@ -228,6 +231,8 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
     logger.info(f"[Tool] Executing postprocess_tool for task {task_id}")
     try:
         config, _, _, vram_mgr = _get_tool_dependencies(task_id)
+        vram_mgr.unload_all() # Clear Step 2 models
+        vram_mgr.cleanup()
         executor = Step3Postprocess(vram_mgr)
         
         # Override config based on tool inputs
