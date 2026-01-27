@@ -158,10 +158,35 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
         if not os.path.isabs(image_path) and not image_path.startswith('http'):
              image_path = str(task_paths.input_dir / os.path.basename(image_path))
 
+        # --- SUPERVISOR OVERRIDE CHECK ---
+        # Check if there are any overrides from Reflection Tool in Redis
+        redis_mgr = RedisManager.from_env()
+        config_key = f"task:{task_id}:config"
+        
+        # Current args
+        final_num_layers = num_layers
+        final_resolution = resolution
+        final_prompt_mode = prompt_mode
+        
+        try:
+            # Check overrides
+            overrides = redis_mgr.client.hgetall(config_key)
+            if overrides:
+                logger.info(f"Applying Supervisor Overrides for Task {task_id}: {overrides}")
+                
+                if "segmentation:num_layers" in overrides:
+                    final_num_layers = int(overrides["segmentation:num_layers"])
+                if "segmentation:resolution" in overrides:
+                    final_resolution = int(overrides["segmentation:resolution"])
+                if "segmentation:prompt_mode" in overrides:
+                    final_prompt_mode = overrides["segmentation:prompt_mode"]
+        except Exception as e:
+            logger.error(f"Failed to load overrides: {e}")
+
         result = executor.execute(
             task_id=task_id,
             image_paths=[image_path],
-            config={"segmentation": {"num_layers": num_layers, "resolution": resolution, "prompt_mode": prompt_mode}}
+            config={"segmentation": {"num_layers": final_num_layers, "resolution": final_resolution, "prompt_mode": final_prompt_mode}}
         )
         
         # Convert absolute paths to web-accessible paths for frontend
@@ -210,11 +235,24 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
         vram_mgr.cleanup()
         executor = Step2VideoGeneration(vram_mgr)
         
+        # --- SUPERVISOR OVERRIDE CHECK ---
+        redis_mgr = RedisManager.from_env()
+        config_key = f"task:{task_id}:config"
+        final_num_frames = num_frames
+        
+        try:
+             overrides = redis_mgr.client.hgetall(config_key)
+             if overrides and "video_generation:num_frames" in overrides:
+                 final_num_frames = int(overrides["video_generation:num_frames"])
+                 logger.info(f"Overriding num_frames to {final_num_frames}")
+        except Exception:
+            pass
+
         result = executor.execute(
             task_id=task_id,
             main_product_layer=main_product_layer,
             user_prompt=prompt,
-            config={"video_generation": {"num_frames": num_frames}}
+            config={"video_generation": {"num_frames": final_num_frames}}
         )
 
         # Convert paths to web paths
@@ -432,10 +470,32 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     try:
         if decision == "retry":
             redis_mgr.client.incr(redis_key)
+            
+            # --- SUPERVISOR OVERRIDE ---
+            # Save config_patch to Redis so subsequent tools uses it automatically
+            # even if the Agent forgets to pass it as arguments.
+            if "config_patch" in result and isinstance(result["config_patch"], dict):
+                patch = result["config_patch"]
+                logger.info(f"Reflection Tool: Applying system-level config patch: {patch}")
+                
+                # Store in a dedicated key for task config overrides
+                config_key = f"task:{task_id}:config"
+                
+                # We need to set individual fields. Since Redis Hash is flat, we flatten the keys.
+                # structure: segmentation:prompt_mode -> value
+                for category, settings in patch.items():
+                    if isinstance(settings, dict):
+                        for key, value in settings.items():
+                            redis_field = f"{category}:{key}"
+                            redis_mgr.client.hset(config_key, redis_field, str(value))
+                            logger.info(f"  -> Set {redis_field} = {value}")
+
         elif decision in ["proceed", "fail"]:
             redis_mgr.client.delete(redis_key) # Reset on success or fail (handover)
+            # Optional: Clear overrides on success? No, keep them as "learned best settings" for this task.
+            
     except Exception as e:
-        logger.error(f"Failed to update retry count: {e}")
+        logger.error(f"Failed to update retry count or config: {e}")
     
     return json.dumps(result)
 
