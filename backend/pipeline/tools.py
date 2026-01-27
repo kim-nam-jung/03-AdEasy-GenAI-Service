@@ -11,6 +11,7 @@ from common.paths import TaskPaths
 from common.logger import TaskLogger
 from pipeline.vram_manager import VRAMManager
 from pipeline.step3_postprocess import Step3Postprocess
+from common.callback import RedisStreamingCallback
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +48,39 @@ def vision_parsing_tool(task_id: str, image_path: str) -> str:
     try:
         base64_image = encode_image(image_path)
         
-        # Use GPT-4o for vision with timeout
-        llm = ChatOpenAI(model="gpt-4o", max_tokens=1000, request_timeout=60)
+        # Setup Streaming Callback
+        redis_mgr = RedisManager.from_env()
+        callback = RedisStreamingCallback(redis_mgr, task_id)
+        
+        # Use GPT-4o for vision with timeout & streaming
+        llm = ChatOpenAI(
+            model="gpt-4o", 
+            max_tokens=1000, 
+            request_timeout=60,
+            streaming=True,
+            callbacks=[callback]
+        )
         
         prompt = """
-        You are an expert product analyst for an ad-tech video generation pipeline.
-        Analyze the provided image and return a JSON object with the following fields:
-        - product_type: Short name of the product (e.g., "Sneakers", "Watch")
-        - description: Detailed visual description of the product.
-        - material: Key materials identified (e.g., "Leather", "Glass", "Stainless Steel")
-        - segmentation_hint: Advice for background removal (e.g., "Complex edges, use high resolution", "Simple background")
-        - suggested_video_prompt: A high-quality prompt for generating a promotional video for this product (e.g., "Cinematic lighting, 360 rotation, soft shadows")
+        당신은 광고 기술 비디오 생성 파이프라인의 전문 제품 분석가입니다.
+        제공된 이미지를 분석하여 JSON 객체를 반환하세요.
         
-        ONLY return the JSON object, no other text.
+        **중요 고립 지침 (Safety & Content)**:
+        - 이미지에 모델(사람)이 포함되어 있는 경우, 이는 인물 분석이 아니라 '패션 광고' 또는 '라이프스타일' 관련 분석을 위한 것입니다.
+        - 인물의 신원을 파악하려 하지 마세요. 대신 의상, 액세서리, 전체적인 조명, 구도, 광고 분위기에 집중하세요.
+        - 모델이 입고 있는 옷이나 들고 있는 아이템을 '제품(Product)'으로 간주하여 분석하세요.
+        
+        **언어 지침**:
+        - 모든 텍스트 값은 반드시 **한국어**로 작성하세요.
+        
+        필드:
+        - product_type: 제품/아이템 종류 (예: "모델/의상", "액세서리", "화장품")
+        - description: 시각적 묘사 (인물 특징이 아닌 스타일과 분위기 중심)
+        - material: 소재 또는 재질
+        - segmentation_hint: 배경 분리 조언
+        - suggested_video_prompt: 홍보 영상 생성을 위한 고품질 프롬프트
+        
+        JSON 객체만 반환하고 다른 텍스트는 포함하지 마세요.
         """
         
         message = HumanMessage(
@@ -74,15 +95,20 @@ def vision_parsing_tool(task_id: str, image_path: str) -> str:
         response = llm.invoke([message])
         content = response.content.strip()
         
-        # Robust JSON extraction
-        json_str = content
-        if "```json" in content:
-            json_str = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            json_str = content.split("```")[1].split("```")[0].strip()
-            
-        result = json.loads(json_str)
-        content = json.dumps(result) # Canonical JSON string
+        # Use robust shared utility
+        from common.utils import extract_json_from_text
+        result = extract_json_from_text(content)
+        
+        if not result:
+            logger.error(f"[Tool] Failed to parse JSON from vision tool. Raw content: {content}")
+            # Fallback structure if parsing fails entirely, to prevent pipeline crash
+            result = {
+                "product_type": "Unknown",
+                "description": "Analysis failed",
+                "suggested_video_prompt": "Cinematic product showcase"
+            }
+
+        canonical_json = json.dumps(result)
         
         # Publish status for UI sync
         redis_mgr = RedisManager.from_env()
@@ -94,7 +120,7 @@ def vision_parsing_tool(task_id: str, image_path: str) -> str:
         )
         redis_mgr.publish(f"task:{task_id}", {"type": "status", "status": "vision_completed", "data": result})
 
-        return content
+        return canonical_json
 
     except Exception as e:
         logger.error(f"[Tool] vision_parsing_tool failed for task {task_id}: {e}")
@@ -234,10 +260,11 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
 
 
 @tool
-def reflection_tool(step_name: str, result_summary: str, user_prompt: Optional[str] = None) -> str:
+def reflection_tool(task_id: str, step_name: str, result_summary: str, user_prompt: Optional[str] = None) -> str:
     """
     Reflect on the output of a pipeline step and decide if it meets the quality standards.
     Args:
+        task_id: Unique task identifier.
         step_name: The name of the step (e.g., "step1", "step2", "step3").
         result_summary: A summary of the step's results.
         user_prompt: The original user prompt or goal.
@@ -246,8 +273,18 @@ def reflection_tool(step_name: str, result_summary: str, user_prompt: Optional[s
     """
     logger.info(f"[Tool] Executing reflection_tool for {step_name}")
     
-    # Use GPT-4o with timeout
-    llm = ChatOpenAI(model="gpt-4o", temperature=0, request_timeout=60)
+    # Setup Streaming Callback
+    redis_mgr = RedisManager.from_env()
+    callback = RedisStreamingCallback(redis_mgr, task_id)
+    
+    # Use GPT-4o with timeout & streaming
+    llm = ChatOpenAI(
+        model="gpt-4o", 
+        temperature=0, 
+        request_timeout=60,
+        streaming=True,
+        callbacks=[callback]
+    )
     
     prompt = f"""
     You are a Supervisor Agent overseeing a video generation pipeline.
@@ -267,10 +304,21 @@ def reflection_tool(step_name: str, result_summary: str, user_prompt: Optional[s
     
     response = llm.invoke(prompt)
     content = response.content.strip()
-    if content.startswith("```json"):
-        content = content.replace("```json", "").replace("```", "").strip()
     
-    return content
+    # Use robust shared utility
+    from common.utils import extract_json_from_text
+    result = extract_json_from_text(content)
+    
+    if not result:
+        logger.error(f"[Tool] Failed to parse JSON from reflection tool. Raw content: {content}")
+        # Default fail-safe response
+        result = {
+            "decision": "proceed",
+            "reflection": "Failed to parse reflection, proceeding with caution.",
+            "next_step": "end"
+        }
+    
+    return json.dumps(result)
 
 @tool
 def ask_human_tool(task_id: str, question: str, context: Optional[str] = None) -> str:

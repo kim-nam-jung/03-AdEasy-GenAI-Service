@@ -37,8 +37,8 @@ celery_app.conf.update(
     result_serializer='json',
     accept_content=['json'],
     task_track_started=True,  # Task 시작 시점 추적
-    task_time_limit=3600,  # 1시간 최대 실행 시간
-    task_soft_time_limit=3300,  # 55분 소프트 타임아웃
+    task_time_limit=14400,  # 4시간 최대 실행 시간
+    task_soft_time_limit=13800,  # 3시간 50분 소프트 타임아웃
     
     # Worker 설정
     worker_prefetch_multiplier=1,  # 한 번에 1개 Task만 가져오기 (GPU 작업용)

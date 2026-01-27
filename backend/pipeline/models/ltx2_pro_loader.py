@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class LTX2ProLoader:
     """Loader for LTX-Video model."""
     
-    def __init__(self, model_id: str = "Lightricks/LTX-Video", device: str = "cuda", use_fp8: bool = False):
+    def __init__(self, model_id: str = "/app/models/ltx2", device: str = "cuda", use_fp8: bool = False):
         """
         Initialize LTX-Video loader.
         
@@ -147,11 +147,11 @@ class LTX2ProLoader:
             
             video_frames = output.frames[0]
             
-            # Save video
+            # Save video to a consistent absolute location
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_dir = "outputs/videos"
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = f"{output_dir}/ltx_raw_{timestamp}.mp4"
+            output_dir = Path("/app/data/outputs/videos")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(output_dir / f"ltx_raw_{timestamp}.mp4")
             
             export_to_video(video_frames, output_path, fps=fps)
             

@@ -6,7 +6,7 @@ interface ResultGalleryProps {
   taskId: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_URL } from '../api/config';
 
 export const ResultGallery: React.FC<ResultGalleryProps> = ({ videoPath, thumbnailPath, taskId }) => {
   if (!videoPath) return null;

@@ -5,6 +5,8 @@ import { ImageUploader } from './ImageUploader';
 import { api } from '../api/client';
 import { useToastStore } from '../store/toastStore';
 
+import { API_URL, WS_BASE_URL } from '../api/config';
+
 export const PipelineLab: React.FC = () => {
     // Global Store
     const {
@@ -13,8 +15,7 @@ export const PipelineLab: React.FC = () => {
         visionResult, segmentationResult, rawVideoResult, finalResult,
         showFeedbackModal, feedbackQuestion, feedbackContext,
         
-        setTaskId, setStatus, setProgress,
-        setVisionResult, setSegmentationResult, setVideoResult, setFinalResult,
+        setTaskId, 
         setActiveTab, setIsProcessing,
         openFeedbackModal, closeFeedbackModal, updateTaskStatus, resetPipeline
     } = usePipelineStore();
@@ -31,9 +32,7 @@ export const PipelineLab: React.FC = () => {
     useEffect(() => {
         if (!taskId) return;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const wsBase = apiUrl.replace(/^http/, protocol === 'wss:' ? 'wss' : 'ws'); 
+        const wsBase = WS_BASE_URL;
         const wsUrl = `${wsBase}/ws/${taskId}`;
         
         console.log(`Connecting to WS: ${wsUrl}`);
@@ -148,7 +147,7 @@ export const PipelineLab: React.FC = () => {
         formData.append("prompt", prompt);
         
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tasks/`, {
+            const res = await fetch(`${API_URL}/api/v1/tasks/`, {
                 method: "POST",
                 headers: {
                     "X-API-Key": "adeasy-secret-key"
@@ -179,7 +178,7 @@ export const PipelineLab: React.FC = () => {
         try {
             const formData = new FormData();
             formData.append("feedback", feedbackInput);
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/tasks/${taskId}/feedback`, {
+            const res = await fetch(`${API_URL}/api/v1/tasks/${taskId}/feedback`, {
                 method: "POST",
                 headers: {
                     "X-API-Key": "adeasy-secret-key"

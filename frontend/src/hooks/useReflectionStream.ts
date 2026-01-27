@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// Convert http(s) to ws(s)
-const getWsUrl = (url: string) => {
-    if (url.startsWith('https')) {
-        return url.replace('https://', 'wss://');
-    }
-    return url.replace('http://', 'ws://');
-};
-
-const WS_BASE_URL = getWsUrl(API_URL);
+import { WS_BASE_URL } from '../api/config';
 
 export interface ReflectionLog {
     id: number;

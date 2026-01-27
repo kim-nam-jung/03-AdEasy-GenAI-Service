@@ -69,7 +69,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: celery -A app.worker.celery_app worker --loglevel=info
+    command: celery -A app.worker.celery_app worker --loglevel=info --pool=solo
 
   redis:
     image: redis:alpine

@@ -23,7 +23,17 @@ export const ReflectionLog: React.FC<ReflectionLogProps> = ({ taskId }) => {
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors mb-3 px-1 w-full"
             >
-                <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-zinc-300'}`} />
+                <div 
+                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                        isConnected 
+                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                        : 'bg-red-100 text-red-700 border border-red-200 animate-pulse'
+                    }`}
+                    title={isConnected ? "Real-time logs connected" : "Connection lost. Reconnecting..."}
+                >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                    {isConnected ? 'LIVE' : 'OFFLINE'}
+                </div>
                 AGENT CHAIN-OF-THOUGHT
                 <svg className={`w-3 h-3 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
             </button>

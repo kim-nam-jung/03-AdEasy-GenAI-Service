@@ -71,9 +71,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, onNavigate, currentVie
             {/* Main Content */}
             <main className="flex-1 h-full bg-white relative overflow-y-auto custom-scrollbar">
                 {/* Optional Grid Background */}
-                <div className="absolute inset-0 bg-grid-small pointer-events-none z-0 opacity-40" />
+                <div className="absolute inset-0 bg-grid-small pointer-events-none z-0 opacity-30" />
                 
-                <div className="relative z-10 w-full max-w-5xl mx-auto p-10">
+                <div className="relative z-10 w-full h-full">
                     {children}
                 </div>
             </main>

@@ -13,10 +13,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # CORS
-    BACKEND_CORS_ORIGINS: Any = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    BACKEND_CORS_ORIGINS: Any = ["*"] # Allow all origins for robustness in cloud deployment
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
