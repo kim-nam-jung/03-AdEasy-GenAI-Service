@@ -12,7 +12,8 @@ from pipeline.tools import (
     video_generation_tool,
     postprocess_tool,
     reflection_tool,
-    ask_human_tool
+    ask_human_tool,
+    planning_tool
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,8 @@ class AdGenAgent:
             video_generation_tool,
             postprocess_tool,
             reflection_tool,
-            ask_human_tool
+            ask_human_tool,
+            planning_tool
         ]
         
         # 2. Configure LLM
@@ -69,9 +71,10 @@ class AdGenAgent:
 - 프론트엔드 UI는 특정 단계(Vision -> Segmentation -> Video -> Result)를 추적합니다.
 - UI 동기화를 위해 반드시 다음 순서대로 도구를 실행하세요:
   1. `vision_parsing_tool`: 항상 첫 번째 단계입니다. 제품/이미지를 분석합니다.
-  2. `segmentation_tool`: 배경에서 제품(또는 모델)을 분리합니다.
-  3. `video_generation_tool`: 움직임을 생성합니다.
-  4. `postprocess_tool`: 품질을 높입니다 (최종 단계).
+  2. `planning_tool`: 분석 결과를 바탕으로 어떤 비디오를 만들지 사용자에게 공유하는 단계입니다. (항상 Vision 다음, Segmentation 직전에 사용하세요.)
+  3. `segmentation_tool`: 배경에서 제품(또는 모델)을 분리합니다.
+  4. `video_generation_tool`: 움직임을 생성합니다.
+  5. `postprocess_tool`: 품질을 높입니다 (최종 단계).
 
 **워크플로우 제약**:
 - 모든 도구 호출 시 `task_id`를 반드시 전달하세요.

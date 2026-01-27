@@ -2,6 +2,7 @@ import os
 import base64
 import json
 import logging
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
@@ -367,4 +368,48 @@ def ask_human_tool(task_id: str, question: str, context: Optional[str] = None) -
     except Exception as e:
         logger.error(f"[Tool] ask_human_tool failed for task {task_id}: {e}")
         return json.dumps({"error": str(e)})
+
+
+@tool
+def planning_tool(task_id: str, plan_steps: List[str], rationale: str) -> str:
+    """
+    Formulate a step-by-step execution plan for the video generation task.
+    This should be used after vision analysis to define the pipeline strategy.
+    Args:
+        task_id: Unique task identifier.
+        plan_steps: A list of descriptive steps the agent will take (e.g., ["Segment the watch face", "Generate rotating motion", "Upscale to 4K"]).
+        rationale: Brief explanation of why this plan was chosen.
+    Returns:
+        JSON string confirming the plan has been recorded.
+    """
+    logger.info(f"[Tool] Executing planning_tool for task {task_id}")
+    try:
+        from common.redis_manager import RedisManager
+        redis_mgr = RedisManager.from_env()
+        plan_data = {
+            "steps": plan_steps,
+            "rationale": rationale,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Publish to Redis so UI can render a "Plan" card
+        redis_mgr.publish(f"task:{task_id}", {
+            "type": "status", 
+            "status": "planning_completed", 
+            "data": plan_data
+        })
+        
+        # Also set status in Redis for persistence
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="planning_completed",
+            message="Strategic plan formulated",
+            extra={"result": plan_data}
+        )
+        
+        return json.dumps({"status": "plan_recorded", "plan": plan_data})
+    except Exception as e:
+        logger.error(f"[Tool] planning_tool failed: {e}")
+        return json.dumps({"error": str(e)})
+
 

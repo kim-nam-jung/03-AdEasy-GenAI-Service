@@ -124,6 +124,40 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                  );
                }
 
+               // Handle Strategy Plan
+               if (parsed && parsed.steps && Array.isArray(parsed.steps)) {
+                 return (
+                   <div className="my-8 animate-fade-up">
+                     <div className="bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden shadow-2xl">
+                       <div className="px-6 py-4 bg-zinc-800/50 border-b border-zinc-700 flex items-center gap-3">
+                         <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                         <span className="text-[11px] font-black text-amber-400 uppercase tracking-[0.2em]">Strategy Plan</span>
+                       </div>
+                       <div className="p-7 space-y-6">
+                         <div className="space-y-4">
+                           {parsed.steps.map((step: string, idx: number) => (
+                             <div key={idx} className="flex gap-4 items-start">
+                               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 flex items-center justify-center">
+                                 {idx + 1}
+                               </span>
+                               <p className="text-[14px] text-zinc-300 leading-snug pt-0.5">{step}</p>
+                             </div>
+                           ))}
+                         </div>
+                         {parsed.rationale && (
+                           <div className="pt-6 border-t border-zinc-800">
+                             <p className="text-[12px] text-zinc-500 italic leading-relaxed">
+                               <span className="text-zinc-400 font-bold not-italic mr-2">Rationale:</span>
+                               {parsed.rationale}
+                             </p>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 );
+               }
+
                // Handle Intermediate data (Segmentation etc)
                if (parsed && !parsed.error) {
                  const isSegmentation = parsed.segmented_layers && Array.isArray(parsed.segmented_layers);
