@@ -1,4 +1,4 @@
-import React from 'react';
+import { API_URL } from '../../api/config';
 import { ReflectionLog as ReflectionLogType } from '../../hooks/useReflectionStream';
 
 interface MessageListProps {
@@ -8,6 +8,14 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, userImages }) => {
+  const ensureUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return path;
+    const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    const p = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${p}`;
+  };
+
   // Helper to detect and format JSON or code-like thought content
   const formatContent = (content: string) => {
     if (content.trim().startsWith('{') || content.trim().startsWith('```')) {
@@ -82,8 +90,8 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                            controls 
                            autoPlay
                            loop
-                           src={parsed.video_path} 
-                           poster={parsed.thumbnail_path} 
+                           src={ensureUrl(parsed.video_path)} 
+                           poster={ensureUrl(parsed.thumbnail_path)} 
                            className="w-full h-full object-contain" 
                          />
                        </div>
@@ -108,7 +116,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                        </p>
                        {parsed.decision === 'retry' && (
                          <div className="mt-3 flex items-center gap-2 text-[12px] text-amber-600 font-bold">
-                           <span className="animate-spin text-lg">↺</span> Retrying with adjusted parameters...
+                           <span className="animate-spin text-lg">??/span> Retrying with adjusted parameters...
                          </div>
                        )}
                      </div>
@@ -133,7 +141,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                          {isSegmentation ? (
                            <div className="grid grid-cols-3 gap-2">
                              {parsed.segmented_layers.map((layer: string, idx: number) => (
-                               <img key={idx} src={layer} className="w-full aspect-square object-cover rounded-lg border border-zinc-100" alt="layer" />
+                               <img key={idx} src={ensureUrl(layer)} className="w-full aspect-square object-cover rounded-lg border border-zinc-100" alt="layer" />
                              ))}
                            </div>
                          ) : (

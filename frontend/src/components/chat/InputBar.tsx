@@ -3,10 +3,9 @@ import React, { useState, useRef } from 'react';
 interface InputBarProps {
   onSend: (files: File[], prompt: string) => void;
   isLoading: boolean;
-  isArtifactOpen?: boolean;
 }
 
-export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading, isArtifactOpen }) => {
+export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
   const [prompt, setPrompt] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -48,7 +47,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading, isArtifac
   };
 
   return (
-    <div className={`fixed bottom-0 left-[260px] ${isArtifactOpen ? 'right-[45%]' : 'right-0'} bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-8 z-50 transition-all duration-300`}>
+    <div className="fixed bottom-0 left-[260px] right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-8 z-50 transition-all duration-300">
       <div className="max-w-3xl mx-auto w-full">
         <form 
           onSubmit={handleSubmit}

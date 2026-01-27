@@ -158,6 +158,10 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
             config={"segmentation": {"num_layers": num_layers, "resolution": resolution}}
         )
         
+        # Convert paths to web paths for frontend
+        result["segmented_layers"] = [task_paths.to_web_path(p) for p in result["segmented_layers"]]
+        result["main_product_layer"] = task_paths.to_web_path(result["main_product_layer"])
+        
         # Publish status for UI sync
         redis_mgr = RedisManager.from_env()
         redis_mgr.set_status(
@@ -199,6 +203,10 @@ def video_generation_tool(task_id: str, main_product_layer: str, prompt: str, nu
             user_prompt=prompt,
             config={"video_generation": {"num_frames": num_frames}}
         )
+
+        # Convert paths to web paths
+        _, task_paths, _, _ = _get_tool_dependencies(task_id)
+        result["raw_video_path"] = task_paths.to_web_path(result["raw_video_path"])
 
         # Publish status for UI sync
         redis_mgr = RedisManager.from_env()
@@ -247,6 +255,11 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
             raw_video_path=raw_video_path,
             config=config_dict
         )
+
+        # Convert paths to web paths
+        _, task_paths, _, _ = _get_tool_dependencies(task_id)
+        result["video_path"] = task_paths.to_web_path(result["video_path"])
+        result["thumbnail_path"] = task_paths.to_web_path(result["thumbnail_path"])
 
         # Publish status for UI sync (FINAL)
         redis_mgr = RedisManager.from_env()

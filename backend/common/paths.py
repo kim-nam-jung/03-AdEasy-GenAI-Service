@@ -117,6 +117,29 @@ class TaskPaths:
         """data/temp/{task_id}/keyframe_{scene_id}.png"""
         return self.temp_task_dir / f"keyframe_{scene_id}.png"
 
+    # ==================== path helpers ====================
+    def to_web_path(self, absolute_path: str | Path) -> str:
+        """
+        Convert an absolute filesystem path to a web-accessible path.
+        Example: /app/outputs/123/final.mp4 -> /outputs/123/final.mp4
+        """
+        p = Path(absolute_path).resolve()
+        parts = list(p.parts)
+        
+        # Handle outputs
+        if "outputs" in parts:
+            idx = parts.index("outputs")
+            return "/" + "/".join(parts[idx:])
+            
+        # Handle inputs
+        if "data" in parts and "inputs" in parts:
+            idx = parts.index("data")
+            # /data/inputs/... -> /data/inputs/... (need to mount /data too or handle separately)
+            # For now, let's just make it relative to root for safety
+            return "/" + "/".join(parts[idx:])
+            
+        return str(absolute_path)
+
     # ==================== ensure dirs ====================
     def ensure_dirs(self) -> None:
         """필요한 모든 디렉토리 생성 (🆕 inputs_task_dir 추가)"""
