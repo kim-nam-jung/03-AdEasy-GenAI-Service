@@ -285,63 +285,76 @@ def postprocess_tool(task_id: str, raw_video_path: str, rife_enabled: bool = Tru
 
 
 @tool
-def reflection_tool(task_id: str, step_name: str, result_summary: str, user_prompt: Optional[str] = None) -> str:
+def reflection_tool(task_id: str, step_name: str, result_summary: str, image_path: Optional[str] = None, user_prompt: Optional[str] = None) -> str:
     """
     Reflect on the output of a pipeline step and decide if it meets the quality standards.
+    If image_path is provided, it will visually analyze the result.
     Args:
         task_id: Unique task identifier.
-        step_name: The name of the step (e.g., "step1", "step2", "step3").
+        step_name: The name of the step (e.g., "segmentation", "video_gen").
         result_summary: A summary of the step's results.
+        image_path: (Optional) Path to the result image or frame to visually inspect.
         user_prompt: The original user prompt or goal.
     Returns:
         JSON string with decision (proceed/retry/fail) and reflection text.
     """
-    logger.info(f"[Tool] Executing reflection_tool for {step_name}")
+    logger.info(f"[Tool] Executing vision-based reflection for {step_name}")
     
     # Setup Streaming Callback
     redis_mgr = RedisManager.from_env()
     callback = RedisStreamingCallback(redis_mgr, task_id)
     
-    # Use GPT-4o with timeout & streaming
+    # Use GPT-4o with Vision
     llm = ChatOpenAI(
         model="gpt-4o", 
         temperature=0, 
+        max_tokens=500,
         request_timeout=60,
         streaming=True,
         callbacks=[callback]
     )
     
-    prompt = f"""
-    You are a Supervisor Agent overseeing a video generation pipeline.
-    Analyze the following result for '{step_name}':
+    content = [
+        {"type": "text", "text": f"""
+        당신은 영상 제작 파이프라인의 최고 품질 관리 감독관(QC)입니다.
+        '{step_name}' 단계의 결과물이 다음 기준을 충족하는지 엄격하게 검수하세요.
+        
+        결과 요약: {result_summary}
+        사용자 목표: {user_prompt or '고품질 영상 제작'}
+        
+        **이미지를 제공한 경우 시각적 검수 지침**:
+        1. Segmentation 단계라면: 제품(햄버거, 가방 등)이 온전하게 분리되었는가? 잘린 부분이 없는가? 배경이 섞이지 않았는가?
+        2. Video 단계라면: 물체가 자연스럽게 움직이는가? 시각적 붕괴(artifact)가 없는가?
+        
+        **결정 지침**:
+        - 품질이 미흡하면 무조건 "retry"를 선택하고, 구체적인 해결책(예: 'resolution을 1024로 높이세요')을 config_patch에 제안하세요.
+        - 완벽하면 "proceed"를 선택하세요.
+        - 기술적 한계로 도저히 불가능하면 "fail"을 선택하세요.
+        
+        JSON 형식으로만 응답하세요:
+        {{
+          "decision": "proceed" | "retry" | "fail",
+          "reflection": "한국어로 작성된 상세한 검수 의견",
+          "config_patch": {{ "key": "value" }}
+        }}
+        """}
+    ]
+
+    if image_path and os.path.exists(image_path):
+        base64_image = encode_image(image_path)
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+        })
     
-    Result Summary: {result_summary}
-    User Goal: {user_prompt or 'Create a high-quality product video'}
+    response = llm.invoke([HumanMessage(content=content)])
+    raw_content = response.content.strip()
     
-    Decide if the step was successful. Return a JSON object:
-    - decision: "proceed", "retry", or "fail"
-    - reflection: Your detailed analysis of the result.
-    - next_step: The name of the next step to execute (or "end").
-    - config_patch: (Optional) A dictionary of settings to update if retrying or proceeding.
-    
-    ONLY return the JSON object.
-    """
-    
-    response = llm.invoke(prompt)
-    content = response.content.strip()
-    
-    # Use robust shared utility
     from common.utils import extract_json_from_text
-    result = extract_json_from_text(content)
+    result = extract_json_from_text(raw_content)
     
     if not result:
-        logger.error(f"[Tool] Failed to parse JSON from reflection tool. Raw content: {content}")
-        # Default fail-safe response
-        result = {
-            "decision": "proceed",
-            "reflection": "Failed to parse reflection, proceeding with caution.",
-            "next_step": "end"
-        }
+        result = {"decision": "proceed", "reflection": "검수 도구 오류로 일단 진행합니다."}
     
     return json.dumps(result)
 
