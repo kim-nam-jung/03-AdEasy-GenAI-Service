@@ -17,6 +17,7 @@ export function useReflectionStream(taskId: string | null) {
     const wsRef = useRef<WebSocket | null>(null);
     const nextSeqRef = useRef<number>(1);
     const bufferRef = useRef<Map<number, any>>(new Map());
+    const logIdRef = useRef<number>(0);
     
     // Buffer for the current streaming thought/token stream
     const currentThoughtRef = useRef<string>("");
@@ -29,6 +30,7 @@ export function useReflectionStream(taskId: string | null) {
         currentThoughtRef.current = "";
         nextSeqRef.current = 1;
         bufferRef.current.clear();
+        logIdRef.current = 0;
         
         const wsUrl = `${WS_BASE_URL}/ws/${taskId}`;
         console.log(`Connecting to Reflection Stream: ${wsUrl}`);
@@ -46,7 +48,7 @@ export function useReflectionStream(taskId: string | null) {
                         newLogs[newLogs.length - 1].content = currentThoughtRef.current;
                     } else {
                         newLogs.push({
-                            id: Date.now(),
+                            id: ++logIdRef.current,
                             type: 'thought',
                             content: currentThoughtRef.current,
                             isComplete: false,
@@ -67,7 +69,7 @@ export function useReflectionStream(taskId: string | null) {
                 currentThoughtRef.current = ""; 
             } else if (msgData.type === 'thought') {
                 setLogs(prev => [...prev, {
-                    id: Date.now(),
+                    id: ++logIdRef.current,
                     type: 'thought',
                     content: msgData.message,
                     isComplete: true,
@@ -75,7 +77,7 @@ export function useReflectionStream(taskId: string | null) {
                 }]);
             } else if (msgData.type === 'tool_call') {
                 setLogs(prev => [...prev, {
-                    id: Date.now(),
+                    id: ++logIdRef.current,
                     type: 'tool_call',
                     content: msgData.log || `Calling ${msgData.tool}...`,
                     metadata: { tool: msgData.tool, input: msgData.tool_input },
@@ -84,7 +86,7 @@ export function useReflectionStream(taskId: string | null) {
                 }]);
             } else if (msgData.type === 'tool_result') {
                 setLogs(prev => [...prev, {
-                    id: Date.now(),
+                    id: ++logIdRef.current,
                     type: 'tool_result',
                     content: msgData.output,
                     isComplete: true,
@@ -92,7 +94,7 @@ export function useReflectionStream(taskId: string | null) {
                 }]);
             } else if (msgData.type === 'log') {
                 setLogs(prev => [...prev, {
-                    id: Date.now(),
+                    id: ++logIdRef.current,
                     type: 'thought',
                     content: msgData.message,
                     isComplete: true,
