@@ -116,7 +116,7 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
                        </p>
                        {parsed.decision === 'retry' && (
                          <div className="mt-3 flex items-center gap-2 text-[12px] text-amber-600 font-bold">
-                           <span className="animate-spin text-lg">??/span> Retrying with adjusted parameters...
+                           <span className="animate-spin text-lg"></span> Retrying with adjusted parameters...
                          </div>
                        )}
                      </div>
