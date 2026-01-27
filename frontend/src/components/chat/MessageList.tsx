@@ -19,16 +19,13 @@ export const MessageList: React.FC<MessageListProps> = ({ logs, userPrompt, user
   // Helper to hide purely technical JSON content from thoughts
   const formatContent = (content: string) => {
     const trimmed = content.trim();
-    // If it's just a raw JSON object, hide it (the specialized card will handle it)
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) return null;
-    
-    // If it's a code block, keep it but style it
-    if (trimmed.startsWith('```')) {
-      return (
-        <pre className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-[12px] font-mono text-zinc-600 overflow-x-auto my-2">
-          {trimmed.replace(/```json|```/g, '').trim()}
-        </pre>
-      );
+    // If it's a raw JSON object or contains a JSON code block, hide it
+    if (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+      trimmed.includes('```json') ||
+      (trimmed.includes('{') && trimmed.includes('}') && trimmed.includes('"'))
+    ) {
+      return null;
     }
     
     // Standard text

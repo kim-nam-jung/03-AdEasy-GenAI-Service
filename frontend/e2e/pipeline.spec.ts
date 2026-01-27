@@ -66,6 +66,15 @@ test.describe('Agent Pipeline', () => {
                          data: { product_name: 'Hero Shoe', visual_characteristics: ['Red', 'Sporty'] } 
                      }), 1000);
                      
+                     // Mock planning_tool result to match new pipeline
+                     setTimeout(() => send({
+                         type: 'tool_result',
+                         content: JSON.stringify({
+                             steps: ["Analyze visuals", "Generate motion plan", "Execute video generation"],
+                             rationale: "Highlighting sporty aesthetics"
+                         })
+                     }), 1200);
+                     
                      setTimeout(() => send({ 
                          type: 'status', 
                          status: 'step1_completed', 
@@ -115,11 +124,11 @@ test.describe('Agent Pipeline', () => {
         await expect(page.locator('text=Task Initialized: mock-123')).toBeVisible({ timeout: 5000 });
         await expect(page.locator('text=Analyzing image...')).toBeVisible({ timeout: 5000 });
 
+        // Wait for planning result
+        await expect(page.locator('text=Analyze visuals')).toBeVisible({ timeout: 5000 });
+
         // Wait for status to show completed
         await expect(page.locator('text=completed')).toBeVisible({ timeout: 10000 });
-
-        // Click result tab to see final output
-        await page.getByRole('button', { name: 'result' }).click();
-        await expect(page.locator('text=Final Output')).toBeVisible({ timeout: 5000 });
+        await expect(page.locator('text=Pipeline Completed Successfully!')).toBeVisible({ timeout: 5000 });
     });
 });

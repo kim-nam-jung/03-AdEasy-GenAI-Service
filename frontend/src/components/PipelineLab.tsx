@@ -273,7 +273,7 @@ export const PipelineLab: React.FC = () => {
                                     disabled={isProcessing || selectedFiles.length === 0}
                                     className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold text-lg hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition-all transform active:scale-[0.98]"
                                 >
-                                    {isProcessing ? "Agent Working..." : "Generate Autonomous Video"}
+                                    {isProcessing ? "Agent Working..." : "Start Agent Task"}
                                 </button>
                             </div>
                          </section>
