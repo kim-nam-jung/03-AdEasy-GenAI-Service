@@ -9,6 +9,8 @@ export interface ReflectionLog {
     isComplete: boolean;
     timestamp: string;
     metadata?: any;
+    status?: string;
+    taskId?: string;
 }
 
 export function useReflectionStream(taskId: string | null) {
@@ -52,7 +54,8 @@ export function useReflectionStream(taskId: string | null) {
                             type: 'thought',
                             content: currentThoughtRef.current,
                             isComplete: false,
-                            timestamp: new Date().toLocaleTimeString()
+                            timestamp: new Date().toLocaleTimeString(),
+                            taskId
                         });
                     }
                     return newLogs;
@@ -73,7 +76,8 @@ export function useReflectionStream(taskId: string | null) {
                     type: 'thought',
                     content: msgData.message,
                     isComplete: true,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString(),
+                    taskId
                 }]);
             } else if (msgData.type === 'tool_call') {
                 setLogs(prev => [...prev, {
@@ -82,7 +86,8 @@ export function useReflectionStream(taskId: string | null) {
                     content: msgData.log || `Calling ${msgData.tool}...`,
                     metadata: { tool: msgData.tool, input: msgData.tool_input },
                     isComplete: true,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString(),
+                    taskId
                 }]);
             } else if (msgData.type === 'tool_result') {
                 setLogs(prev => [...prev, {
@@ -90,7 +95,8 @@ export function useReflectionStream(taskId: string | null) {
                     type: 'tool_result',
                     content: msgData.output,
                     isComplete: true,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString(),
+                    taskId
                 }]);
             } else if (msgData.type === 'status') {
                 // Treat status updates with data as tool results so they appear in chat
@@ -101,6 +107,8 @@ export function useReflectionStream(taskId: string | null) {
                         content: typeof msgData.data === 'string' ? msgData.data : JSON.stringify(msgData.data),
                         isComplete: true,
                         timestamp: new Date().toLocaleTimeString(),
+                        status: msgData.status,
+                        taskId,
                         metadata: { status: msgData.status, is_final: msgData.status === 'completed' }
                     }]);
                 }
@@ -110,8 +118,19 @@ export function useReflectionStream(taskId: string | null) {
                     type: 'thought',
                     content: msgData.message,
                     isComplete: true,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString(),
+                    taskId
                 }]);
+            } else if (msgData.type === 'human_input_received') {
+                // If the user submits feedback, we might want to update the last 'planning_proposed' entry's status
+                setLogs(prev => {
+                    const newLogs = [...prev];
+                    const lastPlan = [...newLogs].reverse().find(l => l.status === 'planning_proposed');
+                    if (lastPlan) {
+                        lastPlan.status = 'planning_completed';
+                    }
+                    return newLogs;
+                });
             }
         };
 
