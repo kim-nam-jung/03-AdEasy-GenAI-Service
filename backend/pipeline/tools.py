@@ -330,30 +330,37 @@ def reflection_tool(task_id: str, step_name: str, result_summary: str, image_pat
     
     content = [
         {"type": "text", "text": f"""
-        당신은 영상 제작 파이프라인의 최고 품질 관리 감독관(QC)입니다.
-        '{step_name}' 단계의 결과물이 다음 기준을 충족하는지 엄격하게 검수하세요.
+        당신은 영상 제작 파이프라인의 **'악독하고 까다로운' 품질 관리자(QC)**입니다.
+        대충 넘어가려는 태도는 용납되지 않습니다. 픽셀 단위로 꼬투리를 잡아서라도 완벽한 품질을 만들어내야 합니다.
+        
+        '{step_name}' 단계의 결과물이 다음 기준을 충족하는지 **현미경처럼** 검수하세요.
         
         결과 요약: {result_summary}
         사용자 목표: {user_prompt or '고품질 영상 제작'}
         
-        **이미지를 제공한 경우 시각적 검수 지침**:
-        1. Segmentation 단계라면: 제품(햄버거, 가방 등)이 온전하게 분리되었는가? 잘린 부분이 없는가? 배경이 섞이지 않았는가?
-        2. Video 단계라면: 물체가 자연스럽게 움직이는가? 시각적 붕괴(artifact)가 없는가?
+        **[중요] 시각적 불량 기준 (발견 즉시 RETRY)**:
+        1. **Segmentation (가장 중요)**:
+           - **잘림(Clipping)**: 햄버거 빵 윗부분, 패티 옆부분, 접시 끝부분이 조금이라도 잘려 나갔는가? (절대 용납 불가)
+           - **파먹음(Missing)**: 제품 내부에 구멍이 뚫리거나 사라진 부분이 있는가?
+           - **배경 잔여물**: 제품 주변에 지저분한 배경이 묻어 있는가?
+        2. **Video Generation**:
+           - **무너짐**: 움직일 때 물체가 녹아내리거나 형태가 괴기하게 변하는가?
         
-        **결정 지침**:
-        - 품질이 미흡하면 무조건 "retry"를 선택하고, 구체적인 해결책(예: 'resolution을 1024로 높이세요')을 config_patch에 제안하세요.
-        - 완벽하면 "proceed"를 선택하세요.
-        - 기술적 한계로 도저히 불가능하면 "fail"을 선택하세요.
+        **결정 및 처방 지침**:
+        - 위 불량이 하나라도 보이면 **무조건 "retry"**를 선택하세요. ("proceed" 금지)
+        - **Retry 시 처방전(config_patch)**을 반드시 내려야 합니다:
+           - 잘림/파먹음 발생 시 -> `{{ "segmentation": {{ "resolution": 1280, "num_layers": 8 }} }}` (해상도/레이어 대폭 상향)
+           - 영상 무너짐 발생 시 -> `{{ "video_generation": {{ "num_frames": 128 }} }}`
         
         JSON 형식으로만 응답하세요:
         {{
           "decision": "proceed" | "retry" | "fail",
-          "reflection": "한국어로 작성된 상세한 검수 의견",
+          "reflection": "불량 사유를 적나라하게 지적하세요 (예: '햄버거 윗빵이 날아갔습니다. 해상도 1280으로 올려서 다시 따세요.')",
           "config_patch": {{ "key": "value" }}
         }}
         """}
     ]
-
+    
     if image_path and os.path.exists(image_path):
         base64_image = encode_image(image_path)
         content.append({
