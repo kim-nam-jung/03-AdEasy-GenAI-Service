@@ -135,7 +135,7 @@ from common.logger import TaskLogger
 from common.config import Config
 
 @tool
-def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolution: int = 640) -> str:
+def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolution: int = 640, prompt_mode: str = "center") -> str:
     """
     Execute Step 1: Image Segmentation.
     Extracts layers from the input image.
@@ -144,6 +144,7 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
         image_path: Path to the input image.
         num_layers: Number of layers to extract (default: 4).
         resolution: Processing resolution (default: 640).
+        prompt_mode: Segmentation strategy ("center" or "grid"). Use "grid" for larger/complex objects.
     Returns:
         JSON string with result containing segmented_layers paths and main_product_layer path.
     """
@@ -160,7 +161,7 @@ def segmentation_tool(task_id: str, image_path: str, num_layers: int = 4, resolu
         result = executor.execute(
             task_id=task_id,
             image_paths=[image_path],
-            config={"segmentation": {"num_layers": num_layers, "resolution": resolution}}
+            config={"segmentation": {"num_layers": num_layers, "resolution": resolution, "prompt_mode": prompt_mode}}
         )
         
         # Convert absolute paths to web-accessible paths for frontend
