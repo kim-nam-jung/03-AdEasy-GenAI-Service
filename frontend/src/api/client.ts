@@ -47,7 +47,7 @@ export const api = {
         
         formData.append('prompt', prompt);
 
-        const response = await fetchWithRetry(`${API_URL}/api/v1/tasks/`, {
+        const response = await fetchWithRetry(`${API_URL}/api/v1/tasks`, {
             method: 'POST',
             headers: {
                 'X-API-Key': API_KEY,

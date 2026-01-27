@@ -124,11 +124,31 @@ test.describe('Agent Pipeline', () => {
         await expect(page.locator('text=Task Initialized: mock-123')).toBeVisible({ timeout: 5000 });
         await expect(page.locator('text=Analyzing image...')).toBeVisible({ timeout: 5000 });
 
-        // Wait for planning result
+        // --- Emit Planning Result (Seq 2) ---
+        await page.evaluate(() => {
+            if (window.wsMock) {
+                window.wsMock.dispatchEvent(new MessageEvent('message', { 
+                    data: JSON.stringify({ 
+                        seq: 2, 
+                        data: { 
+                            type: 'status',
+                            status: 'planning_proposed',
+                            data: { 
+                                steps: ['Analyze visuals', 'Segment product', 'Generate video'], 
+                                rationale: 'I will analyze the visuals first...' 
+                            } 
+                        } 
+                    }) 
+                }));
+            }
+        });
+
+        // Wait for planning result card
+        await expect(page.locator('text=Strategy Plan')).toBeVisible({ timeout: 5000 });
         await expect(page.locator('text=Analyze visuals')).toBeVisible({ timeout: 5000 });
         
         // --- NEW: Handle Human-in-the-Loop Approval in Test ---
-        const approveBtn = page.locator('button:has-text("Approve & Start")');
+        const approveBtn = page.getByRole('button', { name: 'Approve & Start' });
         await expect(approveBtn).toBeVisible();
         
         // Mock feedback API
