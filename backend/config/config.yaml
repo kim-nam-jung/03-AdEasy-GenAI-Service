@@ -26,8 +26,8 @@ models:
   
   # Step 2: Video Generation (LTX-Video 2 Pro)
   ltx_video:
-    repo_id: "Lightricks/LTX-2"
-    local_dir: "models/LTX-2"
+    repo_id: "/app/models/ltx2"
+    local_dir: "models/ltx2"
     device: "cuda"
     use_fp8: true
   
