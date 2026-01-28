@@ -11,7 +11,6 @@ from pipeline.tools import (
     vision_parsing_tool,
     ask_human_tool
 )
-)
 from common.utils import extract_json_from_text
 from common.redis_manager import RedisManager
 

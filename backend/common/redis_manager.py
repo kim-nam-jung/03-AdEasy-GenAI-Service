@@ -48,6 +48,11 @@ class RedisManager:
             logger.error(f"Failed to publish to {channel}: {e}")
             return 0
 
+    def publish_event(self, task_id: str, event: Dict[str, Any]) -> int:
+        """Publish an event to the task's WebSocket channel."""
+        channel = f"task:{task_id}"
+        return self.publish(channel, event)
+
     def ping(self) -> bool:
         try:
             return bool(self._r.ping())
