@@ -93,3 +93,29 @@ def generate_video_task(self, task_id: str, image_paths: list, prompt: str = "")
         raise
         
 
+
+@celery_app.task(bind=True, name='app.worker.resume_video_task')
+def resume_video_task(self, task_id: str, feedback: dict):
+    """
+    영상 생성 재개 (피드백 반영)
+    """
+    try:
+        # Pipeline Orchestrator Init
+        orchestrator = PipelineOrchestrator(
+            task_id=task_id,
+            image_paths=[], # Resume doesn't need these
+            prompt="",
+            redis_mgr=redis_mgr
+        )
+        
+        result = orchestrator.resume(feedback)
+        return result
+    except Exception as e:
+        logger_err = TaskLogger(task_id, TaskPaths.from_repo(task_id).run_log)
+        logger_err.error(f"❌ Resume failed: {str(e)}")
+        redis_mgr.set_status(
+            task_id=task_id,
+            status="failed",
+            message=f"Resume Error: {str(e)[:200]}"
+        )
+        raise

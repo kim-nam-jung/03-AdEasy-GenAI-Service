@@ -1,0 +1,121 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: A
+        - generic [ref=e8]: AdEasy Studio
+      - navigation [ref=e9]:
+        - generic [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+          - text: New Project
+        - generic [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - text: Pipeline Lab
+        - generic [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+          - text: Library
+        - generic [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+          - text: Settings
+    - generic [ref=e26]:
+      - generic [ref=e27]: User Account
+      - generic [ref=e28]: Free Plan
+  - main [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - heading "AdGen Agent" [level=1] [ref=e34]
+            - paragraph [ref=e35]: Autonomous Video Generation Pipeline status monitor.
+          - button "Clear VRAM" [ref=e37] [cursor=pointer]
+        - generic [ref=e38]:
+          - generic [ref=e42]:
+            - button "LIVE AGENT CHAIN-OF-THOUGHT" [ref=e43] [cursor=pointer]:
+              - generic "Real-time logs connected" [ref=e44]: LIVE
+              - text: AGENT CHAIN-OF-THOUGHT
+              - img [ref=e46]
+            - generic [ref=e48]:
+              - generic [ref=e50]:
+                - img "thought" [ref=e51]: 💡
+                - generic [ref=e52]:
+                  - generic [ref=e53]:
+                    - generic [ref=e54]: thought
+                    - generic [ref=e55]: 8:47:19 PM
+                  - generic [ref=e56]: Analyzing image...
+              - generic [ref=e58]:
+                - img "tool_result" [ref=e59]: 📦
+                - generic [ref=e60]:
+                  - generic [ref=e61]:
+                    - generic [ref=e62]: tool result
+                    - generic [ref=e63]: 8:47:20 PM
+                  - button "Show data" [ref=e65] [cursor=pointer]
+              - generic [ref=e67]:
+                - img "tool_result" [ref=e68]: 📦
+                - generic [ref=e69]:
+                  - generic [ref=e70]:
+                    - generic [ref=e71]: tool result
+                    - generic [ref=e72]: 8:47:20 PM
+                  - button "Show data" [ref=e74] [cursor=pointer]
+              - generic [ref=e76]:
+                - img "tool_result" [ref=e77]: 📦
+                - generic [ref=e78]:
+                  - generic [ref=e79]:
+                    - generic [ref=e80]: tool result
+                    - generic [ref=e81]: 8:47:21 PM
+                  - button "Show data" [ref=e83] [cursor=pointer]
+              - generic [ref=e85]:
+                - img "tool_result" [ref=e86]: 📦
+                - generic [ref=e87]:
+                  - generic [ref=e88]:
+                    - generic [ref=e89]: tool result
+                    - generic [ref=e90]: 8:47:21 PM
+                  - button "Show data" [ref=e92] [cursor=pointer]
+          - generic [ref=e93]:
+            - heading "Status" [level=4] [ref=e94]
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - text: Current State
+                - generic [ref=e97]: step1 completed
+              - generic [ref=e98]:
+                - text: Task ID
+                - paragraph [ref=e99]: mock-123
+              - generic [ref=e100]:
+                - text: Progress
+                - paragraph [ref=e102]: 0%
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - generic [ref=e105]: ✅
+          - paragraph [ref=e106]: Pipeline Completed Successfully!
+          - button "✕" [ref=e107] [cursor=pointer]
+        - generic [ref=e108]:
+          - generic [ref=e109]: ✅
+          - paragraph [ref=e110]: Pipeline Completed Successfully!
+          - button "✕" [ref=e111] [cursor=pointer]
+        - generic [ref=e112]:
+          - generic [ref=e113]: ✅
+          - paragraph [ref=e114]: Pipeline Completed Successfully!
+          - button "✕" [ref=e115] [cursor=pointer]
+        - generic [ref=e116]:
+          - generic [ref=e117]: ✅
+          - paragraph [ref=e118]: Pipeline Completed Successfully!
+          - button "✕" [ref=e119] [cursor=pointer]
+        - generic [ref=e120]:
+          - generic [ref=e121]: ✅
+          - paragraph [ref=e122]: Pipeline Completed Successfully!
+          - button "✕" [ref=e123] [cursor=pointer]
+        - generic [ref=e124]:
+          - generic [ref=e125]: ✅
+          - paragraph [ref=e126]: Pipeline Completed Successfully!
+          - button "✕" [ref=e127] [cursor=pointer]
+        - generic [ref=e128]:
+          - generic [ref=e129]: ✅
+          - paragraph [ref=e130]: Pipeline Completed Successfully!
+          - button "✕" [ref=e131] [cursor=pointer]
+        - generic [ref=e132]:
+          - generic [ref=e133]: ✅
+          - paragraph [ref=e134]: Pipeline Completed Successfully!
+          - button "✕" [ref=e135] [cursor=pointer]
+```

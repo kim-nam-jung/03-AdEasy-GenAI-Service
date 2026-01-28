@@ -1,5 +1,5 @@
 import operator
-from typing import TypedDict, Annotated, List, Dict, Any, Union
+from typing import TypedDict, Annotated, List, Dict, Any, Union, Optional
 
 class AgentState(TypedDict):
     # Task context
@@ -31,6 +31,11 @@ class AgentState(TypedDict):
     error: Union[str, None]
     retry_count: Dict[str, int]  # Track retries per step
     reflection_history: Annotated[List[str], operator.add]  # Log of supervisor thoughts
+    
+    # Human-in-the-Loop
+    human_feedback: Optional[Dict[str, Any]]
+    failed_step: Optional[str]
+    user_guidance: Optional[str]
     
     # Final Output
     final_output: Dict[str, Any]

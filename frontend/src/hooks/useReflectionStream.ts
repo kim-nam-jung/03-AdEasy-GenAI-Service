@@ -121,6 +121,17 @@ export function useReflectionStream(taskId: string | null) {
         } else if (msgData.type === 'human_input_request') {
             setAwaitingInput(true);
             setPendingQuestion(msgData.question || "추가 지침이 필요합니다");
+            
+            // Inject a visible log for the chat
+            setLogs(prev => [...prev, {
+                id: ++logIdRef.current,
+                type: 'thought',
+                content: msgData.question || "작업을 중단하고 사용자의 승인을 기다립니다.",
+                isComplete: true,
+                timestamp: new Date().toLocaleTimeString(),
+                taskId: taskId || undefined,
+                metadata: { is_human_request: true }
+            }]);
         } else if (msgData.type === 'human_input_received') {
             setAwaitingInput(false);
             setPendingQuestion(null);

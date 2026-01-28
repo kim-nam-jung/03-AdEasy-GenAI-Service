@@ -40,10 +40,10 @@ function App() {
     }
   };
 
-  const handleFeedback = async (feedback: string) => {
+  const handleFeedback = async (feedback: string, action: string = "retry") => {
     if (!taskId) return;
     try {
-        await api.sendFeedback(taskId, feedback);
+        await api.sendFeedback(taskId, feedback, action);
     } catch (err) {
         console.error("Failed to send feedback:", err);
     }

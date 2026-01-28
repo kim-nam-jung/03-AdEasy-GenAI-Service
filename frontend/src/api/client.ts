@@ -63,9 +63,10 @@ export const api = {
         return response.json();
     },
 
-    sendFeedback: async (taskId: string, feedback: string): Promise<any> => {
+    sendFeedback: async (taskId: string, feedback: string, action: string = "retry"): Promise<any> => {
         const formData = new FormData();
         formData.append('feedback', feedback);
+        formData.append('action', action);
 
         const response = await fetch(`${API_URL}/api/v1/tasks/${taskId}/feedback`, {
             method: 'POST',

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 
 interface InputBarProps {
   onSend: (files: File[], prompt: string) => void;
-  onFeedback?: (feedback: string) => void;
+  onFeedback?: (feedback: string, action?: string) => void;
   isLoading: boolean;
   awaitingInput?: boolean;
   pendingQuestion?: string | null;
@@ -46,7 +46,8 @@ export const InputBar: React.FC<InputBarProps> = ({
 
     if (awaitingInput && onFeedback) {
         if (prompt.trim() === "") return;
-        onFeedback(prompt);
+        if (prompt.trim() === "") return;
+        onFeedback(prompt, "retry");
         setPrompt("");
         return;
     }
@@ -72,6 +73,24 @@ export const InputBar: React.FC<InputBarProps> = ({
           onSubmit={handleSubmit}
           className="bg-white border border-zinc-200 rounded-2xl shadow-xl shadow-zinc-200/40 p-2 focus-within:ring-1 focus-within:ring-zinc-400 focus-within:border-zinc-400 transition-all"
         >
+          {awaitingInput && (
+             <div className="absolute -top-10 left-0 flex gap-2">
+                 <button 
+                   type="button" 
+                   onClick={() => onFeedback?.("__FORCE_PROCEED__", "proceed")}
+                   className="px-3 py-1 text-xs bg-emerald-500 text-white rounded-full shadow-sm hover:bg-emerald-600 transition-colors"
+                 >
+                   강제 진행
+                 </button>
+                 <button 
+                   type="button" 
+                   onClick={() => onFeedback?.("__CANCEL__", "cancel")}
+                   className="px-3 py-1 text-xs bg-rose-500 text-white rounded-full shadow-sm hover:bg-rose-600 transition-colors"
+                 >
+                   취소
+                 </button>
+             </div>
+          )}
           {/* Previews Area */}
           {previews.length > 0 && (
             <div className="flex gap-2 p-2 px-3 overflow-x-auto">

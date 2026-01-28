@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from typing import List, Optional
 from app.schemas.task import TaskResponse
-from app.worker import generate_video_task
+from app.worker import generate_video_task, resume_video_task
 from common.redis_manager import RedisManager
 from common.paths import TaskPaths
 from app.core.deps import verify_api_key
@@ -121,10 +121,10 @@ async def get_task(task_id: str):
     return status_data
 
 @router.post("/{task_id}/feedback")
-async def submit_feedback(task_id: str, feedback: str = Form(...)):
+async def submit_feedback(task_id: str, feedback: str = Form(...), action: str = Form("retry")):
     """
     Submit human feedback for a paused/failed task.
-    This effectively acknowledges the 'ask_human' request.
+    Action: "retry" (default) or "proceed"
     """
     redis_mgr = RedisManager.from_env()
     
@@ -132,8 +132,8 @@ async def submit_feedback(task_id: str, feedback: str = Form(...)):
     redis_mgr.set_status(
         task_id=task_id,
         status="feedback_received", 
-        message="User provided feedback. Ready to resume.",
-        extra={"user_feedback": feedback}
+        message="User provided feedback. Resuming...",
+        extra={"user_feedback": feedback, "action": action}
     )
     
     # Publish event to clear UI
@@ -142,4 +142,8 @@ async def submit_feedback(task_id: str, feedback: str = Form(...)):
         "feedback": feedback
     })
     
-    return {"status": "received", "feedback": feedback}
+    # Trigger Resume Task
+    feedback_data = {"action": action, "message": feedback}
+    resume_video_task.delay(task_id=task_id, feedback=feedback_data)
+    
+    return {"status": "resuming", "feedback": feedback, "action": action}
