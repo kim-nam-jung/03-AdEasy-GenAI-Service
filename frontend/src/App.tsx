@@ -15,7 +15,7 @@ function App() {
   const [userImages, setUserImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [taskId, setTaskId] = useState<string>('');
-  const { logs } = useReflectionStream(taskId);
+  const { logs, awaitingInput, pendingQuestion } = useReflectionStream(taskId);
 
   const handleSend = async (files: File[], prompt: string) => {
     try {
@@ -30,12 +30,22 @@ function App() {
       // Create Task
       const res = await api.createTask(files, prompt);
       setTaskId(res.task_id);
+      setIsLoading(false);
       
       // No more polling needed, we use the reflection stream events
       
     } catch (err) {
         console.error(err);
         setIsLoading(false);
+    }
+  };
+
+  const handleFeedback = async (feedback: string) => {
+    if (!taskId) return;
+    try {
+        await api.sendFeedback(taskId, feedback);
+    } catch (err) {
+        console.error("Failed to send feedback:", err);
     }
   };
   
@@ -74,7 +84,11 @@ function App() {
             {/* Input Bar */}
             <InputBar 
                onSend={handleSend} 
+               onFeedback={handleFeedback}
                isLoading={isLoading} 
+               awaitingInput={awaitingInput}
+               pendingQuestion={pendingQuestion}
+               taskId={taskId}
             />
         </div>
       )}

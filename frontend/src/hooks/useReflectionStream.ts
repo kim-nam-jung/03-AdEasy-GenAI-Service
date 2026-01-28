@@ -17,6 +17,8 @@ export function useReflectionStream(taskId: string | null) {
     const [logs, setLogs] = useState<ReflectionLog[]>([]);
     const logIdRef = useRef<number>(0);
     const currentThoughtRef = useRef<string>("");
+    const [awaitingInput, setAwaitingInput] = useState(false);
+    const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
     const handleMessage = useCallback((msgData: TaskEvent) => {
         // Handle token streaming
@@ -116,7 +118,12 @@ export function useReflectionStream(taskId: string | null) {
                 timestamp: new Date().toLocaleTimeString(),
                 taskId: taskId || undefined
             }]);
+        } else if (msgData.type === 'human_input_request') {
+            setAwaitingInput(true);
+            setPendingQuestion(msgData.question || "추가 지침이 필요합니다");
         } else if (msgData.type === 'human_input_received') {
+            setAwaitingInput(false);
+            setPendingQuestion(null);
             setLogs(prev => {
                 const newLogs = [...prev];
                 const lastPlan = [...newLogs].reverse().find(l => l.status === 'planning_proposed');
@@ -133,5 +140,5 @@ export function useReflectionStream(taskId: string | null) {
         handleMessage
     );
 
-    return { logs, isConnected };
+    return { logs, isConnected, awaitingInput, pendingQuestion };
 }

@@ -62,6 +62,25 @@ export const api = {
         
         return response.json();
     },
+
+    sendFeedback: async (taskId: string, feedback: string): Promise<any> => {
+        const formData = new FormData();
+        formData.append('feedback', feedback);
+
+        const response = await fetch(`${API_URL}/api/v1/tasks/${taskId}/feedback`, {
+            method: 'POST',
+            headers: {
+                'X-API-Key': API_KEY,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Error: ${response.statusText}`);
+        }
+        return response.json();
+    },
     
     getTask: async (taskId: string): Promise<TaskResponse> => {
         const response = await fetchWithRetry(`${API_URL}/api/v1/tasks/${taskId}`, {

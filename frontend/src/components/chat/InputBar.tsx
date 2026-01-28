@@ -2,10 +2,21 @@ import React, { useState, useRef } from 'react';
 
 interface InputBarProps {
   onSend: (files: File[], prompt: string) => void;
+  onFeedback?: (feedback: string) => void;
   isLoading: boolean;
+  awaitingInput?: boolean;
+  pendingQuestion?: string | null;
+  taskId?: string;
 }
 
-export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
+export const InputBar: React.FC<InputBarProps> = ({ 
+  onSend, 
+  onFeedback, 
+  isLoading,
+  awaitingInput,
+  pendingQuestion,
+  taskId
+}) => {
   const [prompt, setPrompt] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -32,6 +43,14 @@ export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (awaitingInput && onFeedback) {
+        if (prompt.trim() === "") return;
+        onFeedback(prompt);
+        setPrompt("");
+        return;
+    }
+
     if (isLoading || (prompt.trim() === "" && selectedFiles.length === 0)) return;
     onSend(selectedFiles, prompt);
     setPrompt("");
@@ -75,7 +94,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-3 text-zinc-500 hover:text-zinc-900 transition-colors"
-              disabled={isLoading || selectedFiles.length >= 4}
+              disabled={isLoading || (!!awaitingInput) || selectedFiles.length >= 4}
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -94,7 +113,9 @@ export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="제작하고 싶은 영상에 대해 설명해 주세요..."
+              placeholder={awaitingInput 
+                ? pendingQuestion || "지침을 입력하세요..." 
+                : "제작하고 싶은 영상에 대해 설명해 주세요..."}
               className="flex-1 max-h-48 py-3 bg-transparent outline-none resize-none text-[15px] placeholder:text-zinc-400 text-zinc-800 scrollbar-hide"
               rows={1}
               style={{ height: 'auto' }}
@@ -103,14 +124,14 @@ export const InputBar: React.FC<InputBarProps> = ({ onSend, isLoading }) => {
                 target.style.height = 'auto';
                 target.style.height = `${target.scrollHeight}px`;
               }}
-              disabled={isLoading}
+              disabled={isLoading && !awaitingInput}
             />
 
             <button 
               type="submit"
-              disabled={isLoading || (prompt.trim() === "" && selectedFiles.length === 0)}
+              disabled={awaitingInput ? prompt.trim() === "" : isLoading || (prompt.trim() === "" && selectedFiles.length === 0)}
               className={`p-2.5 rounded-xl transition-all ${
-                isLoading || (prompt.trim() === "" && selectedFiles.length === 0)
+                (awaitingInput ? prompt.trim() === "" : isLoading || (prompt.trim() === "" && selectedFiles.length === 0))
                 ? 'bg-zinc-100 text-zinc-300 pointer-events-none'
                 : 'bg-zinc-900 text-white hover:bg-black active:scale-95 shadow-md'
               }`}
