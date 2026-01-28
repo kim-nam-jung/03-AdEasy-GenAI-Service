@@ -6,6 +6,7 @@ Model: facebook/sam2-hiera-large (HuggingFace)
 import torch
 import numpy as np
 from PIL import Image
+import logging
 try:
     from sam2.build_sam import build_sam2
     from sam2.sam2_image_predictor import SAM2ImagePredictor
@@ -17,7 +18,6 @@ except ImportError as e:
     SAM2ImagePredictor = None
 
 from typing import List, Optional
-import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

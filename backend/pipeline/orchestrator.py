@@ -69,37 +69,7 @@ class PipelineOrchestrator:
             message=message
         )
     
-    def run(self) -> Dict:
-        """
-        Execute 3-step agentic pipeline
-        """
-        self.logger.info("=" * 60)
-        self.logger.info("🚀 Starting 3-Step Pipeline...")
-        self.logger.info("=" * 60)
-        
-        try:
-            from pipeline.graph import create_agent_graph
-            
-            # Initial State for 3-step pipeline
-            initial_state = {
-                "task_id": self.task_id,
-                "user_prompt": self.prompt,
-                "image_paths": self.image_paths,
-                "config": self.cfg._data,
-                "current_step": "start",
-                "next_step": "vision",
-                "step_results": {},
-                "vision_analysis": {},
-                "segmented_layers": [],
-                "main_product_layer": "",
-                "raw_video_path": "",
-                "final_video_path": "",
-                "thumbnail_path": "",
-                "error": None,
-                "retry_count": {},
-                "reflection_history": [],
-                "final_output": {}
-            }
+
             
     def _notify_human_input_required(self, state_values: Dict):
         """Helper to notify Redis/Frontend that human input is required"""
@@ -294,4 +264,4 @@ class PipelineOrchestrator:
                 status="failed",
                 message=f"Resume Error: {str(e)[:200]}"
             )
-            throw
+            raise
